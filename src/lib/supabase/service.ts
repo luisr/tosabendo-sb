@@ -16,7 +16,7 @@ export async function getProjects(): Promise<Project[]> {
     `);
 
   if (error) {
-    console.error('Error fetching projects:', error);
+    console.error('Error fetching projects:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 
@@ -41,7 +41,7 @@ export async function getProject(id: string): Promise<Project | undefined> {
     if (error.code === 'PGRST116') {
       return undefined; // Not found
     }
-    console.error('Error fetching project:', error);
+    console.error('Error fetching project:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 
@@ -66,7 +66,7 @@ export async function getUsers(): Promise<User[]> {
     .select('*');
 
   if (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching users:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 
@@ -106,7 +106,7 @@ export async function createProject(projectData: Omit<Project, 'id'>): Promise<s
     .single();
 
   if (projectError) {
-    console.error('Error creating project:', projectError);
+    console.error('Error creating project:', JSON.stringify(projectError, null, 2)); // Modified logging
     throw projectError;
   }
 
@@ -123,7 +123,7 @@ export async function createProject(projectData: Omit<Project, 'id'>): Promise<s
       .insert(teamInserts);
 
     if (teamError) {
-      console.error('Error creating team members:', teamError);
+      console.error('Error creating team members:', JSON.stringify(teamError, null, 2)); // Modified logging
       // Note: In a real app, you might want to rollback the project creation
       throw teamError;
     }
@@ -157,7 +157,7 @@ export async function updateProject(projectId: string, data: Partial<Omit<Projec
     .eq('id', projectId);
 
   if (error) {
-    console.error('Error updating project:', error);
+    console.error('Error updating project:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 
@@ -182,7 +182,7 @@ export async function updateProject(projectId: string, data: Partial<Omit<Projec
         .insert(teamInserts);
 
       if (teamError) {
-        console.error('Error updating team members:', teamError);
+        console.error('Error updating team members:', JSON.stringify(teamError, null, 2)); // Modified logging
         throw teamError;
       }
     }
@@ -206,7 +206,7 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
     .single();
 
   if (error) {
-    console.error('Error creating user:', error);
+    console.error('Error creating user:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 
@@ -231,7 +231,7 @@ export async function updateUser(userId: string, userData: Partial<Omit<User, 'i
     .eq('id', userId);
 
   if (error) {
-    console.error('Error updating user:', error);
+    console.error('Error updating user:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 }
@@ -243,7 +243,7 @@ export async function deleteUser(userId: string): Promise<void> {
     .eq('id', userId);
 
   if (error) {
-    console.error('Error deleting user:', error);
+    console.error('Error deleting user:', JSON.stringify(error, null, 2)); // Modified logging
     throw error;
   }
 }
