@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS task_custom_field_values (
 -- Adicionar índices na tabela task_custom_field_values
 CREATE INDEX idx_task_custom_field_values_task_id ON task_custom_field_values(task_id);
 CREATE INDEX idx_task_custom_field_values_custom_field_id ON task_custom_field_values(custom_field_id);
+-- Considerar índice GIN ou GIST na coluna 'value' se forem necessárias consultas complexas em texto/JSON dentro do valor
+-- CREATE INDEX idx_task_custom_field_values_value ON task_custom_field_values USING GIN (value); -- Se valor for JSONB/TEXT e precisar de busca full-text
 
 
 -- Criar tabela de histórico de mudanças de tarefa
@@ -121,7 +123,7 @@ CREATE TABLE IF NOT EXISTS task_change_history (
   user_id uuid REFERENCES users(id) ON DELETE SET NULL,
   "timestamp" timestamptz NOT NULL DEFAULT now(),
   justification text,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now() -- updated_at pode não ser necessário aqui
 );
 
 -- Adicionar índices na tabela task_change_history
