@@ -7,7 +7,7 @@ import { Project } from "@/lib/types";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getProjects, getUsers } from "@/lib/supabase/service"; // Updated import path
+import { getProjects, getUsers } from "@/lib/data"; // Changed import path
 import { User } from "../../lib/types";
 import { ProjectGalleryModal } from "@/components/dashboard/project-gallery-modal";
 import { ProjectDashboardClient } from "@/components/dashboard/project-dashboard-client";

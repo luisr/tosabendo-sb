@@ -13,3 +13,6 @@ if (!supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Comentado para usar dados mockados ou outra integração (Firebase)
+// Para usar Supabase, descomente e garancia que .env.local esteja configurado

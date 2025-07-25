@@ -1,14 +1,21 @@
 /*
-  # Schema inicial para o sistema de gerenciamento de projetos
+  # Initial Schema with manager_id column included
 
-  1. Novas Tabelas
+  Combined from:
+  - 20250717133541_lively_base.sql (Table creation, RLS, functions, triggers)
+  - 20250717130000_add_manager_id_to_projects.sql (Add manager_id column)
+
+  1. New Tables
     - `users` - Usuários do sistema
-    - `projects` - Projetos
+    - `projects` - Projetos (with manager_id column)
     - `project_team` - Relacionamento entre projetos e usuários (equipe)
 
-  2. Segurança
+  2. Security
     - Habilitar RLS em todas as tabelas
     - Adicionar políticas para usuários autenticados
+
+  3. Functions and Triggers
+    - For updated_at column
 */
 
 -- Criar tabela de usuários
@@ -31,7 +38,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   description text,
-  manager_id uuid REFERENCES users(id),
+  -- manager_id will be added below to ensure it's done after table creation
   planned_start_date timestamptz NOT NULL,
   planned_end_date timestamptz NOT NULL,
   actual_start_date timestamptz,
@@ -46,6 +53,11 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
+
+-- Add manager_id column to projects table
+ALTER TABLE projects
+ADD COLUMN manager_id UUID REFERENCES users(id);
+
 
 -- Criar tabela de equipe do projeto
 CREATE TABLE IF NOT EXISTS project_team (

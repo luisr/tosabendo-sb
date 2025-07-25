@@ -1,4 +1,4 @@
-# Tô de Olho! - Sistema de Gerenciamento de Projetos
+# Tô Sabendo! - Sistema de Gerenciamento de Projetos
 
 Sistema completo de gerenciamento de projetos com IA integrada, desenvolvido com Next.js e Supabase.
 

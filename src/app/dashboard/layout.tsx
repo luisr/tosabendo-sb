@@ -2,7 +2,7 @@
 'use client';
 
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { getProjects, getUsers } from '@/lib/supabase/service';
+import { getProjects, getUsers } from '@/lib/data'; // Changed import path to mock data
 import { useEffect, useState } from 'react';
 import type { Project, User } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';

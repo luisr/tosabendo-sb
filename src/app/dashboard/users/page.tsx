@@ -13,7 +13,7 @@ import { UserForm } from "@/components/dashboard/user-form";
 import type { User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { getUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/service";
+import { getUsers, createUser, updateUser, deleteUser } from "@/lib/data"; // Changed import path to mock data
 
 
 export default function UsersPage() {

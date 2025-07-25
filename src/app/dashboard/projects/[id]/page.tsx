@@ -5,7 +5,7 @@ import type { Project } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { ProjectDashboardClient } from "@/components/dashboard/project-dashboard-client";
 import { useEffect, useState } from "react";
-import { getProject } from "@/lib/supabase/service"; // Assuming getProject is here
+import { getProject } from "@/lib/data"; // Changed import path
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProjectDashboardPage({ params }: { params: { id:string } }) {

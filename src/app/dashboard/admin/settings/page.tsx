@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { deleteUser, getAllUsers, updateUser } from "@/lib/supabase/service" // Updated import path
+import { deleteUser, getAllUsers, updateUser } from "@/lib/data" // Changed import path
 import { Shell } from "@/components/ui/shell"
 import UserForm from "@/components/dashboard/user-form"
 import { useEffect, useState } from 'react'

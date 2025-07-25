@@ -1,7 +1,7 @@
 // src/lib/constants.ts
 
 // Application constants
-export const APP_NAME = 'Tô de Olho!'
+export const APP_NAME = 'Tô Sabendo!'
 export const APP_DESCRIPTION = 'Gerenciamento de Projetos com Inteligência Preditiva e Transparência'
 
 // Default values
