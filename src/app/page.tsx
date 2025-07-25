@@ -10,11 +10,12 @@ import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
-import { getUsers } from '@/lib/supabase/service';
-import type { User } from '@/lib/types';
+// import { getUsers } from '@/lib/supabase/service'; // Remover esta importação, pois não vamos mais buscar todos os usuários
+// import type { User } from '@/lib/types'; // Manter se User for usado em outro lugar, mas não na lógica de login
 import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { AuthManager } from '@/lib/auth';
+// import { AuthManager } from '@/lib/auth'; // Remover ou adaptar se AuthManager não for mais necessário com a autenticação Supabase
 import { APP_NAME } from '@/lib/constants';
+import { supabase } from '@/lib/supabase/config'; // Importar o cliente Supabase
 
 const Logo = () => (
     <div className="flex justify-center items-center mb-4 text-primary">
@@ -35,42 +36,36 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-        const allUsers = await getUsers();
-        const foundUser = allUsers.find(
-            (user: User) => user.email === email && user.password === password
-        );
-        
-        if (foundUser) {
-            toast({
-                title: "Login bem-sucedido!",
-                description: `Bem-vindo, ${foundUser.name}.`,
-            });
-            
-            AuthManager.setCurrentUser(foundUser);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-            if (foundUser.mustChangePassword) {
-                router.push('/dashboard/profile');
-            } else {
-                router.push('/dashboard');
-            }
-        } else {
-            toast({
-                title: "Erro de Login",
-                description: "Credenciais inválidas. Por favor, tente novamente.",
-                variant: "destructive"
-            });
-        }
-    } catch(err) {
-        console.error("Login failed:", err);
+    if (error) {
+      console.error("Login failed:", error);
+      toast({
+        title: "Erro de Login",
+        description: error.message || "Ocorreu um erro ao tentar fazer login.",
+        variant: "destructive",
+      });
+    } else if (data.user) {
+      // Login bem-sucedido com Supabase
+      toast({
+        title: "Login bem-sucedido!",
+        description: `Bem-vindo de volta!`, // Você pode obter o nome do usuário se disponível na sessão
+      });
+      // Redirecionar para o dashboard ou outra página após login
+      router.push('/dashboard'); // Ajuste o redirecionamento conforme a lógica do seu app
+    } else {
+        // Este caso pode ocorrer se data for null e error também for null (situação rara)
         toast({
             title: "Erro de Login",
-            description: "Ocorreu um erro ao tentar fazer login. Tente novamente.",
+            description: "Ocorreu um erro desconhecido ao tentar fazer login.",
             variant: "destructive"
         });
-    } finally {
-        setLoading(false);
     }
+
+    setLoading(false);
   };
 
   return (
