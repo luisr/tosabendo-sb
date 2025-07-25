@@ -32,7 +32,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/utils/currency';
 
 
-const nestTasks = (tasks: Task[]): Task[] => {
+const nestTasks = (tasks: Task[]=[]): Task[] => {
     const taskMap: Map<string, Task & { subTasks: Task[] }> = new Map();
     
     tasks.forEach(task => {
@@ -121,12 +121,12 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   const [csvData, setCsvData] = useState<any[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   
-  const nestedTasks = useMemo(() => nestTasks(project.tasks), [project.tasks]);
+  const nestedTasks = useMemo(() => nestTasks(project?.tasks), [project?.tasks]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>(nestedTasks);
 
   const allAttachments = useMemo(() => {
-    return project.tasks.flatMap(task => task.attachments || []);
-  }, [project.tasks]);
+    return project?.tasks.flatMap(task => task.attachments || [])??[];
+  }, [project?.tasks]);
 
   // --- Start of Permissions Logic ---
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -136,10 +136,10 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   useEffect(() => {
     getUsers().then(setAllUsers);
     if (currentUser) {
-      const member = project.team.find(m => m.user.id === currentUser.id);
+      const member = (project?.team??[]).find(m => m.user.id === currentUser.id);
       setCurrentUserRole(member ? member.role : null);
     }
-  }, [project.team, currentUser]);
+  }, [project?.team, currentUser]);
 
   const canEditProject = currentUserRole === 'Manager';
   const canEditTasks = currentUserRole === 'Manager' || currentUserRole === 'Editor';
@@ -213,14 +213,14 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
     const updatedProject = {
       ...project,
       configuration: newConfig,
-      team: newTeam || project.team,
+      team: newTeam || project?.team,
     };
     updateProjectAndPersist(updatedProject);
     setIsSettingsOpen(false);
   };
 
    const handleSaveBaseline = () => {
-    const tasksWithBaseline = project.tasks.map(task => ({
+    const tasksWithBaseline = (project?.tasks??[]).map(task => ({
       ...task,
       baselineStartDate: task.plannedStartDate,
       baselineEndDate: task.plannedEndDate,
@@ -234,13 +234,13 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleDeleteBaseline = () => {
-    const tasksWithoutBaseline = project.tasks.map(task => {
+    const tasksWithoutBaseline = (project?.tasks??[]).map(task => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { baselineStartDate, baselineEndDate, ...rest } = task;
       return rest;
     });
      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { baselineSavedAt, ...restProject } = project;
+    const { baselineSavedAt, ...restProject } = project??{}
     const updatedProject = {
       ...restProject,
       tasks: tasksWithoutBaseline,
@@ -249,7 +249,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'changeHistory' | 'isCritical'>, justification: string) => {
-    let flatTasks = [...project.tasks];
+    let flatTasks = [...project?.tasks];
     let updatedTaskData = { ...taskData };
 
     if (updatedTaskData.dependencies && updatedTaskData.dependencies.length > 0) {
@@ -313,7 +313,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleTaskStatusChange = useCallback((taskId: string, newStatus: string) => {
-    const updatedTasks = project.tasks.map(task => {
+    const updatedTasks = (project?.tasks??[]).map(task => {
         if (task.id === taskId) {
             const oldStatus = task.status;
             if (oldStatus === newStatus) return task;
@@ -328,7 +328,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
             }];
             
             let progress = task.progress;
-            const completedStatus = project.configuration.statuses.find(s => s.isCompleted);
+            const completedStatus = (project?.configuration?.statuses??[]).find(s => s.isCompleted);
             if(completedStatus && newStatus === completedStatus.name) {
                 progress = 100;
             }
@@ -353,7 +353,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleDeleteTask = (taskId: string) => {
-    let flatTasks = [...project.tasks];
+    let flatTasks = [...project?.tasks];
     const taskToDelete = flatTasks.find(t => t.id === taskId);
     if (!taskToDelete) return;
 
@@ -378,7 +378,7 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const handleBulkAction = (action: 'delete' | 'duplicate' | 'move', taskIds: Set<string>, newParentId?: string | null) => {
-    let currentTasks = [...project.tasks];
+    let currentTasks = [...project?.tasks];
 
     if (action === 'delete') {
       const allIdsToDelete = new Set(taskIds);
@@ -437,9 +437,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleExportTasks = () => {
-    const dataToExport = project.tasks.map(task => {
+    const dataToExport = (project?.tasks??[]).map(task => {
       const customFieldsData: {[key: string]: any} = {};
-      project.configuration.customFieldDefinitions?.forEach(def => {
+      project?.configuration?.customFieldDefinitions?.forEach(def => {
           customFieldsData[def.name] = task.customFields?.[def.id] ?? '';
       });
 
@@ -518,11 +518,11 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
   
   const handleImportConfirm = (mapping: Mapping) => {
-    const usersInProject = project.team.map(tm => tm.user);
+    const usersInProject = (project?.team??[]).map(tm => tm.user);
     const usersMap = new Map<string, User>(usersInProject.map(u => [u.id, u]));
     const usersByNameMap = new Map<string, User>(usersInProject.map(u => [u.name.toLowerCase(), u]));
 
-    const newCustomFieldDefs: CustomFieldDefinition[] = [...(project.configuration.customFieldDefinitions || [])];
+    const newCustomFieldDefs: CustomFieldDefinition[] = [...(project?.configuration?.customFieldDefinitions || [])];
     const newCustomFieldMap = new Map<string, string>(); // csvHeader -> customFieldId
 
     Object.entries(mapping).forEach(([csvHeader, mapInfo]) => {
@@ -608,8 +608,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         // Add default values for required fields if they are missing
         if (!task.id) task.id = `task-${Date.now()}-${Math.random()}`;
         if (!task.name) task.name = "Tarefa importada sem nome";
-        if (!task.assignee) task.assignee = project.team[0].user;
-        if (!task.status) task.status = project.configuration.statuses.find(s => s.isDefault)?.name || 'A Fazer';
+        if (!task.assignee) task.assignee = project?.team?.[0]?.user;
+        if (!task.status) task.status = (project?.configuration?.statuses??[]).find(s => s.isDefault)?.name || 'A Fazer';
         if (task.progress === undefined) task.progress = 0;
         if (!task.plannedStartDate) task.plannedStartDate = new Date().toISOString();
         if (!task.plannedEndDate) task.plannedEndDate = new Date().toISOString();
@@ -621,8 +621,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
         return task as Task;
     }).filter(t => t.name !== "Tarefa importada sem nome"); // Filter out potentially empty rows
 
-    const allTasks = [...project.tasks, ...newTasks];
-    const newConfig = { ...project.configuration, customFieldDefinitions: newCustomFieldDefs };
+    const allTasks = [...project?.tasks, ...newTasks];
+    const newConfig = { ...project?.configuration, customFieldDefinitions: newCustomFieldDefs };
     
     const newActualCost = allTasks.reduce((sum, t) => sum + (t.actualHours * 50), 0);
     const updatedProject = {
@@ -657,14 +657,14 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
   };
 
   const allKpis = useMemo(() => {
-    const { tasks, configuration, plannedBudget, actualCost } = project;
+    const { tasks, configuration, plannedBudget, actualCost } = project??{};
     
     // Default KPIs
-    const completedStatus = configuration.statuses.find(s => s.isCompleted);
-    const completedTasks = completedStatus ? tasks.filter(t => t.status === completedStatus.name).length : 0;
-    const overallProgress = calculateTotalProgress(tasks);
-    const totalPlannedHours = tasks.reduce((sum, t) => sum + t.plannedHours, 0);
-    const totalActualHours = tasks.reduce((sum, t) => sum + t.actualHours, 0);
+    const completedStatus = (configuration?.statuses??[]).find(s => s.isCompleted);
+    const completedTasks = completedStatus ? (tasks??[]).filter(t => t.status === completedStatus.name).length : 0;
+    const overallProgress = calculateTotalProgress(tasks??[]);
+    const totalPlannedHours = (tasks??[]).reduce((sum, t) => sum + t.plannedHours, 0);
+    const totalActualHours = (tasks??[]).reduce((sum, t) => sum + t.actualHours, 0);
     const earnedValue = (overallProgress / 100) * totalPlannedHours;
     const spi = totalPlannedHours > 0 && earnedValue > 0 ? (earnedValue / totalPlannedHours) : 1;
     const cpi = totalActualHours > 0 && earnedValue > 0 ? (earnedValue / totalActualHours) : 1;
@@ -839,8 +839,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: Pro
       <ProjectSettingsModal
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
-        projectConfiguration={project.configuration}
-        team={project.team}
+        projectConfiguration={project?.configuration}
+        team={project?.team}
         allUsers={allUsers}
         onSave={handleConfigUpdate}
       />

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { getProject } from "@/lib/data"; // Changed import path
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function ProjectDashboardPage({ params }: { params: { id:string } }) {
+export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<Project | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +34,40 @@ export default function ProjectDashboardPage({ params }: { params: { id:string }
   }
 
   return (
-    <ProjectDashboardClient project={project} />
+    <ProjectDashboardClient initialProject={project ?? {
+      actualCost: 0,
+      configuration: {
+        statuses: [],
+        visibleKpis: {},
+        customKpis: [],
+        customCharts: [],
+        customFieldDefinitions: [],
+        alertRules: [],
+      },
+      description: '',
+      id: '',
+      name: '',
+      manager: {
+        id: '',
+        name: '',
+        avatar: '',
+        email: '',
+        password: '',
+        mustChangePassword: false,
+        phone: '',
+        role: 'Admin', // Global/default role
+        status: 'active',
+      },
+      team: [],
+      plannedStartDate: '',
+      plannedEndDate: '',
+      actualStartDate: '',
+      actualEndDate: '',
+      plannedBudget: 0,
+      tasks: [],
+      kpis: {},
+      baselineSavedAt: '',
+      criticalPath: [''],
+    }} />
   );
 }
