@@ -1,4 +1,5 @@
-// src/hooks/use-auth.ts
+"use client";
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/lib/supabase/config';
 import type { User as AuthUser } from '@supabase/supabase-js';
@@ -10,7 +11,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({
+const AuthContext: React.Context<AuthContextType> = createContext<AuthContextType>({
   user: null,
   loading: true,
   isAuthenticated: false,
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatar: session.user.user_metadata?.avatar_url || '',
           // Adicione outras propriedades padrão se necessário
           status: 'active',
-          role: 'Admin', // Defina um papel padrão ou busque do seu DB
+          role: 'Admin',
         };
         setUser(appUser);
       }
@@ -82,3 +83,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export const useAuth = () => {
   return useContext(AuthContext);
 };
+
+export const testExport = true;

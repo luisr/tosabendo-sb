@@ -6,7 +6,14 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants';
-import { AuthProvider } from '@/hooks/use-auth'; // Importe o AuthProvider
+// import { AuthProvider } from '@/hooks/use-auth'; // Importe o AuthProvider
+import dynamic from 'next/dynamic';
+
+// Importação dinâmica do AuthProvider com ssr: false
+const AuthProvider = dynamic(
+  () => import('@/hooks/use-auth').then((mod) => mod.AuthProvider),
+  { ssr: false }
+);
 
 // A exportação de metadata não é mais suportada em Client Components.
 // Você pode precisar movê-la para um Server Component pai, se necessário.
