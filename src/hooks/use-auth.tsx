@@ -4,7 +4,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import type { User as AppUser } from '@/lib/types'; // Nosso tipo de perfil de usuário
+import type { User as AppUser } from '@/lib/types';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -19,20 +19,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getActiveUser = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
+    const getActiveUserProfile = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
       if (!supabaseUser) {
         return null;
       }
 
-      // Busca o perfil do usuário na nossa tabela 'users'
+      // Corrigido: Usar .maybeSingle() para evitar erros quando o perfil ainda não existe.
+      // Ele retorna null em vez de lançar um erro, tornando o código mais resiliente.
       const { data: userProfile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
-        .single();
+        .maybeSingle(); 
       
       if (error) {
-        console.error("Error fetching user profile:", error);
+        console.error("Error fetching user profile:", error.message); 
         return null;
       }
       return userProfile as AppUser;
@@ -41,17 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setLoading(true);
-        const appUser = await getActiveUser(session?.user ?? null);
+        const appUser = await getActiveUserProfile(session?.user ?? null);
         setUser(appUser);
         setLoading(false);
       }
     );
 
-    // Limpa a inscrição quando o componente é desmontado
     return () => {
       subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   const value = {
     user,
