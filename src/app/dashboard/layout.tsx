@@ -1,9 +1,11 @@
+// src/app/dashboard/layout.tsx
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { getProjects } from '@/lib/supabase/service';
-import { createClient } from '@/lib/supabase/server'; // Corrigido
+import { createClient } from '@/lib/supabase/server';
 import type { User } from '@/lib/types';
 import { redirect } from 'next/navigation';
 import { AuthProvider } from '@/hooks/use-auth-context';
+import { getProjectsAction } from '@/app/actions';
+import { NotificationListener } from '@/components/dashboard/notification-listener'; // Importado
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -22,11 +24,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', authUser.id)
     .single();
 
-  const projects = await getProjects();
+  const projects = await getProjectsAction();
+  
   const user: User | null = userProfile;
 
   return (
     <AuthProvider user={user}>
+      <NotificationListener /> {/* Adicionado */}
       <div className="flex min-h-screen bg-background">
         {user && <DashboardSidebar user={user} projects={projects} />}
         <main className="flex-1 flex flex-col">

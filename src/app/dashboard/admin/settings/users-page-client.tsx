@@ -10,9 +10,11 @@ import { ZodType } from 'zod';
 import { Shell } from "@/components/ui/shell";
 import { Button } from "@/components/ui/button";
 import { UserForm } from "@/components/dashboard/user-form";
-import { DataTable } from "@/components/ui/data-table"; // Corrigido
+import { DataTable } from "@/components/ui/data-table";
 import { getColumns } from "./columns";
 import { getAllUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PlusCircle } from 'lucide-react';
 
 interface UsersPageClientProps {
   initialUsers: User[];
@@ -22,6 +24,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
     const [users, setUsers] = useState<User[]>(initialUsers);
     const [loading, setLoading] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false); // Estado para o modal
     const { toast } = useToast();
 
     const form = useForm<ZodType<User>>({
@@ -30,23 +33,25 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
             id: '',
             name: "",
             email: "",
-            role: "USER",
+            role: "Viewer", // Alterado para um padrão mais seguro
         },
         mode: "onChange"
     });
 
     useEffect(() => {
-        if (editingUser) {
-            form.reset(editingUser);
-        } else {
-            form.reset({
-                id: '',
-                name: "",
-                email: "",
-                role: "USER",
-            });
+        if (isModalOpen) {
+            if (editingUser) {
+                form.reset(editingUser);
+            } else {
+                form.reset({
+                    id: '',
+                    name: "",
+                    email: "",
+                    role: "Viewer",
+                });
+            }
         }
-    }, [editingUser, form]);
+    }, [editingUser, isModalOpen, form]);
     
     const fetchUsers = async () => {
         setLoading(true);
@@ -62,10 +67,12 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
 
     const handleEdit = (user: User) => {
         setEditingUser(user);
+        setIsModalOpen(true);
     };
     
     const handleAddNew = () => {
         setEditingUser(null);
+        setIsModalOpen(true);
     };
 
     const onSubmit = async (data: User) => {
@@ -78,6 +85,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
                 await createUser(data);
                 toast({ title: "Usuário Criado com sucesso!" });
             }
+            setIsModalOpen(false);
             setEditingUser(null);
             await fetchUsers();
         } catch (error) {
@@ -100,34 +108,34 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
         }
     };
     
-    const columns = useMemo(() => getColumns(handleEdit, onDelete), [handleEdit, onDelete]);
+    const columns = useMemo(() => getColumns(handleEdit, onDelete), [users]);
 
     return (
         <Shell>
-            <div className="flex flex-col gap-8">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight mb-2">
-                        {editingUser ? "Editar Usuário" : "Adicionar Novo Usuário"}
-                    </h2>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold tracking-tight">Gerenciamento de Usuários</h1>
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Usuário
+                </Button>
+            </div>
+            
+            <DataTable columns={columns} data={users} />
+
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingUser ? "Editar Usuário" : "Adicionar Novo Usuário"}</DialogTitle>
+                        <DialogDescription>
+                            {editingUser ? "Atualize os detalhes do usuário." : "Preencha os detalhes para criar um novo usuário."}
+                        </DialogDescription>
+                    </DialogHeader>
                     <UserForm 
-                        key={editingUser ? editingUser.id : 'new-user'}
                         form={form} 
                         onSubmit={onSubmit}
                     />
-                    {editingUser && (
-                        <Button variant="link" onClick={handleAddNew} className="mt-2">
-                            + Adicionar Novo Usuário
-                        </Button>
-                    )}
-                </div>
-
-                <div>
-                     <h2 className="text-2xl font-bold tracking-tight mb-4">
-                        Lista de Usuários
-                    </h2>
-                    <DataTable columns={columns} data={users} />
-                </div>
-            </div>
+                </DialogContent>
+            </Dialog>
         </Shell>
     );
 }

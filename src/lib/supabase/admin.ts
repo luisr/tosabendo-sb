@@ -5,6 +5,6 @@ import { createClient } from '@supabase/supabase-js';
 // Ele ignora todas as políticas de RLS.
 export const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!, // Corrigido para usar a variável segura
+  process.env.SUPABASE_SERVICE_KEY!, 
   { auth: { persistSession: false } }
 );
