@@ -2,7 +2,42 @@
 import { supabase } from './config';
 import type { Project, User, Task, TeamMember, ProjectRole } from '@/lib/types';
 
-// ... (funções de usuário mantidas como estão) ...
+// ===== Funções de Usuários =====
+
+export async function getAllUsers(): Promise<User[]> {
+  const { data, error } = await supabase.from('users').select('*');
+  if (error) {
+    console.error('Error fetching users:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
+  const { data, error } = await supabase.from('users').insert(userData).select('id').single();
+  if (error) {
+    console.error('Error creating user:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+  return data.id;
+}
+
+export async function updateUser(userData: User): Promise<void> {
+  const { id, ...updateData } = userData;
+  const { error } = await supabase.from('users').update(updateData).eq('id', id);
+  if (error) {
+    console.error('Error updating user:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) {
+    console.error('Error deleting user:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+}
 
 // ===== Funções de Projetos =====
 
@@ -10,7 +45,6 @@ export async function createProject(
   projectData: Omit<Project, 'id' | 'manager' | 'team' | 'tasks' | 'kpis' | 'configuration'>,
   managerId: string
 ): Promise<Project> {
-  // Passo 1: Inserir o novo projeto na tabela 'projects'
   const { data: newProject, error: projectError } = await supabase
     .from('projects')
     .insert({
@@ -29,7 +63,6 @@ export async function createProject(
     throw projectError;
   }
 
-  // Passo 2: Adicionar o gerente como o primeiro membro da equipe na tabela 'project_team'
   const { error: teamError } = await supabase
     .from('project_team')
     .insert({
@@ -40,18 +73,15 @@ export async function createProject(
 
   if (teamError) {
     console.error('Error adding manager to project team:', JSON.stringify(teamError, null, 2));
-    // Em um cenário de produção, você poderia deletar o projeto recém-criado para consistência.
     throw teamError;
   }
 
-  // Retorna o projeto completo (sem equipe e tarefas, que são carregados separadamente)
   return {
     ...newProject,
-    manager: { id: managerId } as User, // Placeholder
+    manager: { id: managerId } as User,
     team: [],
     tasks: [],
   } as Project;
 }
-
 
 // ... (resto das funções de projeto e tarefas mantidas como estão) ...
