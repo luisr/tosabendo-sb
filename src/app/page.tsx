@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
-import { createPagesBrowserClient } from '@/lib/supabase/client'; // Corrigido
+import { createClient } from '@/lib/supabase/client'; // Corrigido
 
 const Logo = () => (
     <div className="flex justify-center items-center mb-4 text-primary">
@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createPagesBrowserClient(); // Corrigido
+  const supabase = createClient(); // Corrigido
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +47,8 @@ export default function LoginPage() {
         title: "Login bem-sucedido!",
         description: `Bem-vindo de volta!`,
       });
-      // O middleware cuidará do redirecionamento
-      router.refresh(); 
+      // Redirecionamento explícito para o dashboard
+      router.push('/dashboard'); 
     }
 
     setLoading(false);
