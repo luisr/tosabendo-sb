@@ -5,7 +5,7 @@ import type { Project } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { ProjectDashboardClient } from "@/components/dashboard/project-dashboard-client";
 import { useEffect, useState } from "react";
-import { getProject } from "@/lib/data"; // Changed import path
+import { getProject } from "@/lib/supabase/service"; // CORREÇÃO: Importar do serviço do Supabase
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProjectDashboardPage({ params }: { params: { id: string } }) {
@@ -16,9 +16,14 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     if (params.id) {
       const fetchProject = async () => {
         setLoading(true);
-        const fetchedProject = await getProject(params.id);
-        console.log("Fetched project:", fetchedProject); // Added logging
-        setProject(fetchedProject);
+        try {
+            const fetchedProject = await getProject(params.id);
+            console.log("Fetched project from Supabase:", fetchedProject);
+            setProject(fetchedProject);
+        } catch (error) {
+            console.error("Failed to fetch project:", error);
+            setProject(null); // Define como nulo em caso de erro para acionar o notFound()
+        }
         setLoading(false);
       };
       fetchProject();
@@ -33,41 +38,9 @@ export default function ProjectDashboardPage({ params }: { params: { id: string 
     notFound();
   }
 
+  // O fallback para initialProject não é mais estritamente necessário 
+  // com a verificação de !project acima, mas é uma boa prática mantê-lo.
   return (
-    <ProjectDashboardClient initialProject={project ?? {
-      actualCost: 0,
-      configuration: {
-        statuses: [],
-        visibleKpis: {},
-        customKpis: [],
-        customCharts: [],
-        customFieldDefinitions: [],
-        alertRules: [],
-      },
-      description: '',
-      id: '',
-      name: '',
-      manager: {
-        id: '',
-        name: '',
-        avatar: '',
-        email: '',
-        password: '',
-        mustChangePassword: false,
-        phone: '',
-        role: 'Admin', // Global/default role
-        status: 'active',
-      },
-      team: [],
-      plannedStartDate: '',
-      plannedEndDate: '',
-      actualStartDate: '',
-      actualEndDate: '',
-      plannedBudget: 0,
-      tasks: [],
-      kpis: {},
-      baselineSavedAt: '',
-      criticalPath: [''],
-    }} />
+    <ProjectDashboardClient initialProject={project} />
   );
 }

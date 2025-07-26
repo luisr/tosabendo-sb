@@ -30,18 +30,18 @@ export const defaultConfiguration: ProjectConfiguration = {
       { id: 'sprint', name: 'Sprint', type: 'text' },
     ],
     alertRules: [
-        { 
-            id: 'alert-1', 
-            metric: 'task_status', 
-            condition: 'changes_to', 
-            value: 'Bloqueado', 
-            label: 'Alertar quando Status da Tarefa muda para Bloqueado' 
+        {
+            id: 'alert-1',
+            metric: 'task_status',
+            condition: 'changes_to',
+            value: 'Bloqueado',
+            label: 'Alertar quando Status da Tarefa muda para Bloqueado'
         },
-        { 
-            id: 'alert-2', 
-            metric: 'budget_usage', 
-            condition: 'exceeds_percentage', 
-            value: '90', 
+        {
+            id: 'alert-2',
+            metric: 'budget_usage',
+            condition: 'exceeds_percentage',
+            value: '90',
             label: 'Alertar quando Uso do Orçamento excede 90%'
         }
     ],
@@ -250,6 +250,20 @@ export async function getUsers() {
 // Mocked function to get all users (alias for getUsers for now)
 export async function getAllUsers() {
     return getUsers();
+}
+
+// Mocked function to create a user (add to the array)
+export async function createUser(newUser: Omit<User, 'id' | 'status'>): Promise<User> {
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+  const id = `user-${users.length + 1}`; // Simple ID generation
+  const userWithDefaults: User = {
+    id,
+    ...newUser,
+    status: 'active', // Default status for new users
+    avatar: newUser.avatar || 'https://placehold.co/100x100.png' // Default avatar
+  };
+  users.push(userWithDefaults);
+  return userWithDefaults;
 }
 
 // Mocked function to update a user (find and replace in the array)

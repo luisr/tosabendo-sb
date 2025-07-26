@@ -1,66 +1,34 @@
-// src/app/dashboard/layout.tsx
-'use client';
-
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { getProjects, getUsers } from '@/lib/data'; // Changed import path to mock data
-import { useEffect, useState } from 'react';
-import type { Project, User } from '@/lib/types';
-import { useAuth } from '@/hooks/use-auth';
-import { Skeleton } from '@/components/ui/skeleton';
+import { getProjects } from '@/lib/supabase/service';
+import { createClient } from '@/lib/supabase/server';
+import type { User } from '@/lib/types';
+import { redirect } from 'next/navigation';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [userProjects, setUserProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user: currentUser, loading: authLoading } = useAuth();
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const supabase = createClient();
 
-  useEffect(() => {
-    async function fetchData() {
-      if (authLoading) return;
-      
-      if (!currentUser) {
-        window.location.href = '/';
-        return;
-      }
-      
-      setLoading(true);
-       try {
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-        const projects = await getProjects();
-        setUserProjects(projects);
-
-       } catch (error) {
-         console.error("Failed to fetch dashboard data:", error);
-         // Handle error, maybe show a toast
-       } finally {
-        setLoading(false);
-       }
-    }
-    fetchData();
-  }, [currentUser, authLoading]);
-
-  if (authLoading || loading || !currentUser) {
-    return (
-      <div className="flex min-h-screen bg-background">
-        <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col justify-between">
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-6 w-1/2" />
-          </div>
-        </aside>
-        <main className="flex-1 flex flex-col">
-          <div className="p-6">
-            <Skeleton className="h-8 w-1/3 mb-4" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        </main>
-      </div>
-    );
+  if (!authUser) {
+    return redirect('/');
   }
+
+  // Busca os dados do perfil do usuário na tabela 'users'
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', authUser.id)
+    .single();
+
+  const projects = await getProjects();
+
+  const user: User | null = userProfile;
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardSidebar user={currentUser} projects={userProjects} />
+      {user && <DashboardSidebar user={user} projects={projects} />}
       <main className="flex-1 flex flex-col">
         {children}
       </main>
