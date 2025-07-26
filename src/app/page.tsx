@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
-import { createClient } from '@/lib/supabase/client'; // Corrigido
+import { createClient } from '@/lib/supabase/client';
 
 const Logo = () => (
     <div className="flex justify-center items-center mb-4 text-primary">
@@ -25,31 +25,74 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient(); // Corrigido
+  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Etapa 1: Autenticar o usuário
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
-    if (error) {
+    if (authError || !authData.user) {
       toast({
         title: "Erro de Login",
-        description: error.message || "Ocorreu um erro ao tentar fazer login.",
+        description: authError?.message || "Ocorreu um erro ao tentar fazer login.",
         variant: "destructive",
       });
-    } else if (data.user) {
-      toast({
-        title: "Login bem-sucedido!",
-        description: `Bem-vindo de volta!`,
-      });
-      // Redirecionamento explícito para o dashboard
-      router.push('/dashboard'); 
+      setLoading(false);
+      return;
     }
+
+    // Etapa 2: Verificar se um perfil já existe na tabela 'users'
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = 'no rows found'
+        toast({
+            title: "Erro ao buscar perfil",
+            description: profileError.message,
+            variant: "destructive",
+        });
+        setLoading(false);
+        return;
+    }
+
+    // Etapa 3: Se o perfil não existir, crie um.
+    if (!userProfile) {
+        const { error: createProfileError } = await supabase
+            .from('users')
+            .insert({
+                id: authData.user.id,
+                email: authData.user.email,
+                name: authData.user.email?.split('@')[0] ?? 'Novo Usuário', // Fallback
+                role: 'Viewer', // Padrão seguro
+                status: 'active',
+            });
+        
+        if (createProfileError) {
+            toast({
+                title: "Erro ao criar perfil",
+                description: createProfileError.message,
+                variant: "destructive",
+            });
+            setLoading(false);
+            return;
+        }
+    }
+
+    // Etapa 4: Login bem-sucedido, agora redireciona
+    toast({
+      title: "Login bem-sucedido!",
+      description: `Bem-vindo de volta!`,
+    });
+    router.push('/dashboard'); 
 
     setLoading(false);
   };
