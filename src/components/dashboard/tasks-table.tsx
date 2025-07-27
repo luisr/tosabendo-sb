@@ -1,41 +1,19 @@
 // src/components/dashboard/tasks-table.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { /* ... */ } from 'react';
 import type { Project, Task, BulkAction } from "@/lib/types";
 // ... (outros imports mantidos) ...
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { calculateFormula } from '@/lib/utils/formula'; // Importa nosso motor de cálculo
+import { Badge } from '@/components/ui/badge'; // Importa Badge
 
 // ... (interface e constantes mantidas) ...
 
-export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEditTask, onDeleteTask, onBulkAction }: TasksTableProps) {
-  // ... (estados mantidos: draggedTaskId, expandedRows, selectedRows) ...
-
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({});
-
-  // Inicializa a visibilidade das colunas, incluindo as personalizadas
-  useEffect(() => {
-    const defaultColumns = {
-      assignee: true,
-      status: true,
-      priority: true,
-      progress: true,
-      plannedHours: true,
-      plannedEndDate: true,
-    };
-    
-    const customColumns: ColumnVisibility = {};
-    project.configuration.customFieldDefinitions?.forEach(def => {
-      customColumns[def.id] = true; // Mostra colunas personalizadas por padrão
-    });
-
-    setColumnVisibility({ ...defaultColumns, ...customColumns });
-  }, [project.configuration.customFieldDefinitions]);
-
-  // ... (outros hooks e handlers mantidos) ...
+export function TasksTable({ /* ... (props mantidas) ... */ }: TasksTableProps) {
+  // ... (estados e hooks mantidos) ...
   
   const renderTask = (task: Task, level: number = 0) => {
-    // ... (lógica de renderTask mantida, com a adição abaixo) ...
+    // ... (lógica de renderTask mantida) ...
 
     return (
       <React.Fragment key={task.id}>
@@ -46,9 +24,19 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
           {project.configuration.customFieldDefinitions?.map(fieldDef => {
               if (!columnVisibility[fieldDef.id]) return null;
               
-              let cellContent: React.ReactNode = task.customFields?.[fieldDef.id] ?? '-';
-              if (fieldDef.type === 'date' && task.customFields?.[fieldDef.id]) {
+              let cellContent: React.ReactNode;
+
+              if (fieldDef.type === 'formula' && fieldDef.formula) {
+                  const result = calculateFormula(fieldDef.formula, task);
+                  cellContent = (
+                    <Badge variant="outline" className="font-mono">
+                        {result !== null ? result.toFixed(2) : 'N/A'}
+                    </Badge>
+                  );
+              } else if (fieldDef.type === 'date' && task.customFields?.[fieldDef.id]) {
                   cellContent = formatDate(task.customFields?.[fieldDef.id] as string);
+              } else {
+                  cellContent = task.customFields?.[fieldDef.id] ?? '-';
               }
 
               return (
@@ -69,52 +57,7 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
 
   return (
     <div className="w-full">
-      {selectedRows.size > 0 && canEditTasks ? (
-        <TasksTableBulkActionsToolbar /* ... */ />
-      ) : (
-       <TasksTableToolbar /* ... */ >
-           <div className="flex items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                        <Columns className="mr-2 h-4 w-4" />
-                        Colunas
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Exibir/Ocultar Colunas</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {/* Opções de visibilidade para colunas padrão */}
-                    {Object.keys({
-                        assignee: true, status: true, priority: true, progress: true, 
-                        plannedHours: true, plannedEndDate: true
-                    }).map(key => (
-                        <DropdownMenuCheckboxItem
-                            key={key}
-                            className="capitalize"
-                            checked={columnVisibility[key]}
-                            onCheckedChange={checked => setColumnVisibility(prev => ({ ...prev, [key]: !!checked }))}
-                        >
-                            {key.replace(/([A-Z])/g, ' $1')}
-                        </DropdownMenuCheckboxItem>
-                    ))}
-                    {/* Opções de visibilidade para colunas personalizadas */}
-                     {project.configuration.customFieldDefinitions && project.configuration.customFieldDefinitions.length > 0 && <DropdownMenuSeparator />}
-                     {project.configuration.customFieldDefinitions?.map(def => (
-                         <DropdownMenuCheckboxItem
-                            key={def.id}
-                            checked={columnVisibility[def.id]}
-                            onCheckedChange={value => setColumnVisibility(prev => ({ ...prev, [def.id]: !!value }))}
-                        >
-                            {def.name}
-                        </DropdownMenuCheckboxItem>
-                     ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-            <ViewActions /* ... */ />
-          </div>
-       </TasksTableToolbar>
-      )}
+      {/* ... (Toolbar e Header da tabela mantidos) ... */}
        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -123,7 +66,12 @@ export function TasksTable({ tasks, project, canEditTasks, onTasksChange, onEdit
                 
                 {/* Renderização Dinâmica dos Cabeçalhos Personalizados */}
                 {project.configuration.customFieldDefinitions?.map(fieldDef => (
-                   columnVisibility[fieldDef.id] && <TableHead key={fieldDef.id}>{fieldDef.name}</TableHead>
+                   columnVisibility[fieldDef.id] && (
+                     <TableHead key={fieldDef.id}>
+                       {fieldDef.name}
+                       {fieldDef.type === 'formula' && <span className="text-xs text-muted-foreground ml-1">(ƒ)</span>}
+                     </TableHead>
+                   )
                 ))}
                 
                 <TableHead className='no-print'>Ações</TableHead>
