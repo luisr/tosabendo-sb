@@ -4,41 +4,63 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { Project, ProjectRole, User } from '@/lib/types'
 
+async function getUserWithRole(supabase: any) {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return null;
+
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('id', authUser.id)
+    .single();
+  
+  return userProfile as User;
+}
+
 export async function getProjectsAction(): Promise<Project[]> {
-  const supabase = createClient()
+  const supabase = createClient(); // Cliente que respeita a RLS
+  const user = await getUserWithRole(supabase);
 
-  const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    // Embora o middleware deva proteger, esta é uma verificação de segurança extra.
-    return []
-  }
-
-  // Usamos o cliente admin (com a service_role) para buscar todos os projetos, ignorando a RLS.
-  const { data: allProjects, error: projectsError } = await supabaseAdmin
-    .from('projects')
-    .select(`
-      id, name, description, planned_start_date, planned_end_date,
-      actual_start_date, actual_end_date, planned_budget, actual_cost,
-      kpis, configuration,
-      manager:users!projects_manager_id_fkey(*),
-      team:project_team(role, user:users(*))
-    `);
-
-  if (projectsError) {
-    console.error('Server Action Error fetching all projects:', JSON.stringify(projectsError, null, 2));
-    // Em um cenário de produção, você poderia registrar isso em um serviço de log.
-    // Retornar um array vazio é uma forma segura de lidar com o erro na UI.
     return [];
   }
 
-  // Filtramos os projetos no servidor para retornar apenas aqueles aos quais o usuário pertence.
-  const userProjects = (allProjects ?? []).filter(project =>
-    project.team.some((member: any) => member.user?.id === user.id) ||
-    (project.manager && project.manager.id === user.id)
-  );
+  let query;
+
+  // Se o usuário for Super Admin, use o cliente admin para buscar TODOS os projetos.
+  if (user.role === 'Super Admin') {
+    query = supabaseAdmin
+      .from('projects')
+      .select(`
+        id, name, description, planned_start_date, planned_end_date,
+        actual_start_date, actual_end_date, planned_budget, actual_cost,
+        kpis, configuration,
+        manager:users!projects_manager_id_fkey(*),
+        team:project_team(role, user:users(*))
+      `);
+  } else {
+    // Para todos os outros usuários, use o cliente padrão que respeita a RLS
+    // que acabamos de configurar. O banco de dados fará a filtragem para nós.
+    query = supabase
+      .from('projects')
+      .select(`
+        id, name, description, planned_start_date, planned_end_date,
+        actual_start_date, actual_end_date, planned_budget, actual_cost,
+        kpis, configuration,
+        manager:users!projects_manager_id_fkey(*),
+        team:project_team(role, user:users(*))
+      `);
+  }
+
+  const { data: projects, error } = await query;
+
+  if (error) {
+    console.error('Error fetching projects in Server Action:', JSON.stringify(error, null, 2));
+    return [];
+  }
 
   // Mapeamento robusto com fallbacks.
-  return userProjects.map((p: any) => ({
+  return (projects ?? []).map((p: any) => ({
     id: p.id,
     name: p.name ?? 'Projeto sem nome',
     description: p.description ?? '',
