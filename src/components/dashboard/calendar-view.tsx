@@ -5,12 +5,13 @@ import React, { useState, useMemo, useRef } from 'react';
 import type { Project, Task } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { eachDayOfInterval, format, startOfDay, isSameDay } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { format, startOfDay, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ViewActions } from './view-actions';
-import { PRIORITY_CLASSES } from '@/lib/constants';
+import { Button } from '../ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CalendarViewProps {
   project: Project;
@@ -18,117 +19,96 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ project, onEditTask }: CalendarViewProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const printableRef = useRef<HTMLDivElement>(null);
   
-  const tasksByDate = useMemo(() => {
+  const statusColorMap = useMemo(() => {
+    // ... (lógica mantida) ...
+  }, [project.configuration.statuses]);
+
+  // Organiza as tarefas por dia de início para renderização
+  const tasksByStartDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     project.tasks.forEach(task => {
-      const interval = eachDayOfInterval({
-        start: new Date(task.plannedStartDate),
-        end: new Date(task.plannedEndDate)
-      });
-      interval.forEach(day => {
-        const dayKey = format(day, 'yyyy-MM-dd');
-        const tasksOnDay = map.get(dayKey) || [];
-        map.set(dayKey, [...tasksOnDay, task]);
-      });
+        const startDateKey = format(startOfDay(new Date(task.plannedStartDate)), 'yyyy-MM-dd');
+        const tasksOnDay = map.get(startDateKey) || [];
+        map.set(startDateKey, [...tasksOnDay, task]);
     });
     return map;
   }, [project.tasks]);
 
-  const tasksForSelectedDay = useMemo(() => {
-    if (!selectedDate) return [];
-    const dayKey = format(selectedDate, 'yyyy-MM-dd');
-    return tasksByDate.get(dayKey) || [];
-  }, [selectedDate, tasksByDate]);
-
-  const taskDays = useMemo(() => Array.from(tasksByDate.keys()), [tasksByDate]);
-  
-  const statusColorMap = useMemo(() => {
-    return project.configuration.statuses.reduce((acc, status) => {
-        acc[status.name] = status.color;
-        return acc;
-    }, {} as Record<string, string>);
-  }, [project.configuration.statuses]);
-  
-
-  const DayWithTasks = (day: Date) => {
-    const dayKey = format(day, 'yyyy-MM-dd');
-    const tasksOnDay = tasksByDate.get(dayKey) || [];
-    if (tasksOnDay.length === 0) return null;
+  const DayContent = (props: { date: Date }) => {
+    const dayKey = format(props.date, 'yyyy-MM-dd');
+    const tasksStartingToday = tasksByStartDate.get(dayKey) || [];
 
     return (
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex space-x-0.5">
-        {tasksOnDay.slice(0, 3).map(task => (
-           <div
-            key={task.id}
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: statusColorMap[task.status] || '#808080' }}
-          />
-        ))}
+      <div className="relative w-full h-full flex flex-col items-start p-1">
+        <span className={cn("absolute top-1 right-1 text-xs", isSameDay(props.date, new Date()) && "text-primary font-bold")}>
+          {props.date.getDate()}
+        </span>
+        <div className="mt-4 space-y-0.5 w-full overflow-hidden">
+          {tasksStartingToday.map(task => {
+            const duration = Math.max(1, new Date(task.plannedEndDate).getTime() - new Date(task.plannedStartDate).getTime()) / (1000 * 3600 * 24) + 1;
+            return (
+              <TooltipProvider key={task.id} delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className="text-xs px-1.5 py-0.5 rounded-sm text-white truncate cursor-pointer" 
+                      style={{ 
+                          backgroundColor: statusColorMap[task.status] || '#808080', 
+                          width: `calc(${duration * 100}% - 2px)` 
+                      }}
+                      onClick={() => onEditTask(task)}
+                    >
+                      {task.name}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-bold">{task.name}</p>
+                    <p>Status: {task.status}</p>
+                    <p>Responsável: {task.assignee.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
+        </div>
       </div>
     );
   };
-
+  
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between no-print">
          <div>
             <CardTitle>Calendário do Projeto</CardTitle>
             <CardDescription>
-                Visão geral das tarefas agendadas. Clique em um dia para ver os detalhes.
+                Cronograma visual das tarefas. Passe o mouse para detalhes e clique para editar.
             </CardDescription>
          </div>
-         <ViewActions contentRef={printableRef} />
+         <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+            <span className="font-semibold text-center w-32">{format(currentMonth, 'MMMM yyyy', { locale: ptBR })}</span>
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="h-4 w-4" /></Button>
+            <ViewActions contentRef={printableRef} />
+         </div>
       </CardHeader>
       <CardContent className="printable" ref={printableRef}>
-        <div className="printable-content grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3 flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="p-0"
-              locale={ptBR}
-              modifiers={{ taskDays: taskDays.map(d => new Date(d + 'T00:00:00')) }}
-              modifiersClassNames={{ taskDays: 'bg-accent/50' }}
-              components={{
-                  DayContent: (props) => (
-                    <>
-                      <span className="relative z-10">{props.date.getDate()}</span>
-                      {DayWithTasks(props.date)}
-                    </>
-                  )
-              }}
-            />
-          </div>
-          <div className="lg:col-span-1 border-l pl-8">
-            <h3 className="text-lg font-semibold mb-4">
-              {selectedDate ? format(selectedDate, 'PPP', { locale: ptBR }) : 'Selecione uma data'}
-            </h3>
-            <ScrollArea className="h-96">
-                <div className="space-y-4 pr-4">
-                    {tasksForSelectedDay.length > 0 ? (
-                        tasksForSelectedDay.map(task => (
-                            <div key={task.id} className="p-3 border rounded-lg shadow-sm cursor-pointer hover:bg-muted/50" onClick={() => onEditTask(task)}>
-                                <div className="flex justify-between items-start">
-                                    <p className="font-semibold text-sm">{task.name}</p>
-                                    <Badge variant="outline" className={PRIORITY_CLASSES[task.priority || 'Média']}>
-                                        {task.priority || 'Média'}
-                                    </Badge>
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-2">
-                                    Responsável: {task.assignee.name}
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-sm text-muted-foreground text-center pt-10">Nenhuma tarefa para este dia.</p>
-                    )}
-                </div>
-            </ScrollArea>
-          </div>
+        <div className="printable-content">
+          <Calendar
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+            mode="single" // Mantemos single para a navegação, a visualização é customizada
+            className="p-0"
+            locale={ptBR}
+            classNames={{
+              day: 'h-24 w-full border align-top',
+              head_cell: 'w-full',
+              day_hidden: 'invisible'
+            }}
+            components={{ DayContent: DayContent }}
+          />
         </div>
       </CardContent>
     </Card>

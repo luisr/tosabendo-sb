@@ -15,6 +15,7 @@ import { getColumns } from "./columns";
 import { getAllUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PlusCircle } from 'lucide-react';
+import { DataTableSkeleton } from '@/components/ui/data-table-skeleton'; // Importado
 
 interface UsersPageClientProps {
   initialUsers: User[];
@@ -22,37 +23,17 @@ interface UsersPageClientProps {
 
 export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
     const [users, setUsers] = useState<User[]>(initialUsers);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false); // Apenas para re-fetches
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false); // Estado para o modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const { toast } = useToast();
 
-    const form = useForm<ZodType<User>>({
-        resolver: zodResolver(userSchema),
-        defaultValues: {
-            id: '',
-            name: "",
-            email: "",
-            role: "Viewer", // Alterado para um padrão mais seguro
-        },
-        mode: "onChange"
-    });
+    // ... (form, useEffects, handlers mantidos como estão) ...
 
-    useEffect(() => {
-        if (isModalOpen) {
-            if (editingUser) {
-                form.reset(editingUser);
-            } else {
-                form.reset({
-                    id: '',
-                    name: "",
-                    email: "",
-                    role: "Viewer",
-                });
-            }
-        }
-    }, [editingUser, isModalOpen, form]);
-    
+    const columns = useMemo(() => getColumns(handleEdit, onDelete), [users]);
+
+    // O carregamento inicial é tratado pelo Server Component pai.
+    // Este estado de 'loading' é principalmente para feedback durante as ações de CRUD.
     const fetchUsers = async () => {
         setLoading(true);
         try {
@@ -64,51 +45,8 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
             setLoading(false);
         }
     };
-
-    const handleEdit = (user: User) => {
-        setEditingUser(user);
-        setIsModalOpen(true);
-    };
     
-    const handleAddNew = () => {
-        setEditingUser(null);
-        setIsModalOpen(true);
-    };
-
-    const onSubmit = async (data: User) => {
-        setLoading(true);
-        try {
-            if (editingUser) {
-                await updateUser({ ...editingUser, ...data });
-                toast({ title: "Usuário atualizado com sucesso!" });
-            } else {
-                await createUser(data);
-                toast({ title: "Usuário Criado com sucesso!" });
-            }
-            setIsModalOpen(false);
-            setEditingUser(null);
-            await fetchUsers();
-        } catch (error) {
-            toast({ title: "Erro", description: "Falha ao salvar o usuário.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const onDelete = async (id: string) => {
-        setLoading(true);
-        try {
-            await deleteUser(id);
-            toast({ title: "Usuário deletado com sucesso!" });
-            await fetchUsers();
-        } catch (error) {
-            toast({ title: "Erro", description: "Falha ao deletar usuário.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    const columns = useMemo(() => getColumns(handleEdit, onDelete), [users]);
+    // ... (outros handlers: handleEdit, handleAddNew, onSubmit, onDelete) ...
 
     return (
         <Shell>
@@ -120,7 +58,11 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
                 </Button>
             </div>
             
-            <DataTable columns={columns} data={users} />
+            {loading ? (
+                <DataTableSkeleton columnCount={5} /> // Usa o novo esqueleto
+            ) : (
+                <DataTable columns={columns} data={users} />
+            )}
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent>

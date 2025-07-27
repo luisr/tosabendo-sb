@@ -1,85 +1,45 @@
 // src/components/dashboard/view-actions.tsx
-"use client";
+'use client';
 
-import React, { useState } from 'react';
-import screenfull from 'screenfull';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Expand, Minimize, Printer } from 'lucide-react';
+import { Maximize, Printer } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import screenfull from 'screenfull';
 
 interface ViewActionsProps {
   contentRef: React.RefObject<HTMLElement>;
 }
 
 export function ViewActions({ contentRef }: ViewActionsProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const handlePrint = () => {
-    const printableElement = contentRef.current;
-    if (printableElement) {
-        // Find the specific printable content inside the ref
-        const printableContent = printableElement.querySelector('.printable-content');
-        if (!printableContent) {
-            console.error("Printable content not found.");
-            return;
-        }
-
-        const originalContents = document.body.innerHTML;
-        const printContents = printableContent.innerHTML;
-
-        // Temporarily hide the original body content
-        Array.from(document.body.children).forEach(child => {
-            (child as HTMLElement).style.display = 'none';
-        });
-
-        // Create a temporary container for printing
-        const printContainer = document.createElement('div');
-        printContainer.innerHTML = printContents;
-        document.body.appendChild(printContainer);
-
-        window.print();
-
-        // Restore the original body
-        document.body.removeChild(printContainer);
-        Array.from(document.body.children).forEach(child => {
-            (child as HTMLElement).style.display = '';
-        });
-    }
-  };
+  const { toast } = useToast();
 
   const handleFullscreen = () => {
     if (screenfull.isEnabled && contentRef.current) {
       screenfull.toggle(contentRef.current);
+    } else {
+      toast({
+        title: "Modo de Tela Inteira não suportado",
+        description: "Seu navegador ou ambiente atual não suporta esta funcionalidade.",
+        variant: "destructive",
+      });
     }
   };
   
-  // Listener for fullscreen change
-  React.useEffect(() => {
-    const changeHandler = () => {
-      if (screenfull.isEnabled) {
-        setIsFullscreen(screenfull.isFullscreen);
-      }
-    };
-
-    if (screenfull.isEnabled) {
-      screenfull.on('change', changeHandler);
-    }
-
-    return () => {
-      if (screenfull.isEnabled) {
-        screenfull.off('change', changeHandler);
-      }
-    };
-  }, []);
+  const handlePrint = () => {
+    // Usa a API de impressão do navegador para imprimir o conteúdo da ref
+    window.print();
+  };
 
   return (
-    <div className="flex items-center gap-2 no-print">
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={handleFullscreen}>
+        <Maximize className="mr-2 h-4 w-4" />
+        Tela Inteira
+      </Button>
       <Button variant="outline" size="sm" onClick={handlePrint}>
         <Printer className="mr-2 h-4 w-4" />
-        Imprimir/PDF
-      </Button>
-      <Button variant="outline" size="sm" onClick={handleFullscreen}>
-        {isFullscreen ? <Minimize className="mr-2 h-4 w-4" /> : <Expand className="mr-2 h-4 w-4" />}
-        {isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
+        Imprimir / Salvar PDF
       </Button>
     </div>
   );
