@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/hooks/use-auth"; // Importado
+// A importação do AuthProvider foi removida
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,14 +23,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="theme-macos-light"
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider> {/* Adicionado */}
-            {children}
-            <Toaster />
-          </AuthProvider> {/* Adicionado */}
+          {/* O AuthProvider foi removido daqui */}
+          {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

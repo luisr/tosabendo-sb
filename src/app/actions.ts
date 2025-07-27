@@ -4,13 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { Project, ProjectRole, User } from '@/lib/types'
 
-async function getUserWithRole(supabase: any) {
+// Função auxiliar para buscar o perfil do usuário logado
+async function getAuthenticatedUserProfile(supabase: any): Promise<User | null> {
   const { data: { user: authUser } } = await supabase.auth.getUser();
   if (!authUser) return null;
 
   const { data: userProfile } = await supabase
     .from('users')
-    .select('id, role')
+    .select('*')
     .eq('id', authUser.id)
     .single();
   
@@ -19,43 +20,51 @@ async function getUserWithRole(supabase: any) {
 
 export async function getProjectsAction(): Promise<Project[]> {
   const supabase = createClient(); // Cliente que respeita a RLS
-  const user = await getUserWithRole(supabase);
+  const user = await getAuthenticatedUserProfile(supabase);
 
   if (!user) {
     return [];
   }
 
-  let query;
+  let projectIds: string[];
 
-  // Se o usuário for Super Admin, use o cliente admin para buscar TODOS os projetos.
+  // Se o usuário for Super Admin, ele tem acesso a todos os projetos.
   if (user.role === 'Super Admin') {
-    query = supabaseAdmin
-      .from('projects')
-      .select(`
-        id, name, description, planned_start_date, planned_end_date,
-        actual_start_date, actual_end_date, planned_budget, actual_cost,
-        kpis, configuration,
-        manager:users!projects_manager_id_fkey(*),
-        team:project_team(role, user:users(*))
-      `);
+    const { data, error } = await supabaseAdmin.from('projects').select('id');
+    if (error) {
+      console.error('Error fetching all project IDs for Super Admin:', error);
+      return [];
+    }
+    projectIds = data.map(p => p.id);
   } else {
-    // Para todos os outros usuários, use o cliente padrão que respeita a RLS
-    // que acabamos de configurar. O banco de dados fará a filtragem para nós.
-    query = supabase
-      .from('projects')
-      .select(`
-        id, name, description, planned_start_date, planned_end_date,
-        actual_start_date, actual_end_date, planned_budget, actual_cost,
-        kpis, configuration,
-        manager:users!projects_manager_id_fkey(*),
-        team:project_team(role, user:users(*))
-      `);
+    // Para outros usuários, fazemos uma consulta simples que a RLS pode resolver sem recursão.
+    const { data, error } = await supabase.from('projects').select('id');
+    if (error) {
+      console.error('Error fetching user project IDs:', error);
+      return [];
+    }
+    projectIds = data.map(p => p.id);
   }
 
-  const { data: projects, error } = await query;
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  // Agora, com os IDs seguros, usamos o cliente admin para buscar todos os dados completos.
+  // Esta consulta ignora a RLS e evita qualquer possibilidade de recursão.
+  const { data: projects, error } = await supabaseAdmin
+    .from('projects')
+    .select(`
+      id, name, description, planned_start_date, planned_end_date,
+      actual_start_date, actual_end_date, planned_budget, actual_cost,
+      kpis, configuration,
+      manager:users!projects_manager_id_fkey(*),
+      team:project_team(role, user:users(*))
+    `)
+    .in('id', projectIds);
 
   if (error) {
-    console.error('Error fetching projects in Server Action:', JSON.stringify(error, null, 2));
+    console.error('Error fetching full projects data with admin client:', error);
     return [];
   }
 

@@ -31,7 +31,6 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Etapa 1: Autenticar o usuário
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
@@ -40,41 +39,39 @@ export default function LoginPage() {
     if (authError || !authData.user) {
       toast({
         title: "Erro de Login",
-        description: authError?.message || "Ocorreu um erro ao tentar fazer login.",
+        description: authError?.message || "Ocorreu um erro.",
         variant: "destructive",
       });
       setLoading(false);
       return;
     }
 
-    // Etapa 2: Verificar se um perfil já existe na tabela 'users'
     const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('id')
       .eq('id', authData.user.id)
       .single();
 
-    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = 'no rows found'
-        toast({
-            title: "Erro ao buscar perfil",
-            description: profileError.message,
-            variant: "destructive",
-        });
+    if (profileError && profileError.code !== 'PGRST116') {
+        toast({ title: "Erro ao buscar perfil", description: profileError.message, variant: "destructive" });
         setLoading(false);
         return;
     }
 
-    // Etapa 3: Se o perfil não existir, crie um.
     if (!userProfile) {
+        const newProfile = {
+            id: authData.user.id,
+            email: authData.user.email,
+            name: authData.user.email?.split('@')[0] ?? 'Novo Usuário',
+            role: 'Viewer',
+            status: 'active',
+        };
+
+        console.log("DEBUG: Tentando inserir o seguinte perfil:", JSON.stringify(newProfile, null, 2));
+
         const { error: createProfileError } = await supabase
             .from('users')
-            .insert({
-                id: authData.user.id,
-                email: authData.user.email,
-                name: authData.user.email?.split('@')[0] ?? 'Novo Usuário', // Fallback
-                role: 'Viewer', // Padrão seguro
-                status: 'active',
-            });
+            .insert(newProfile);
         
         if (createProfileError) {
             toast({
@@ -87,7 +84,6 @@ export default function LoginPage() {
         }
     }
 
-    // Etapa 4: Login bem-sucedido, agora redireciona
     toast({
       title: "Login bem-sucedido!",
       description: `Bem-vindo de volta!`,
