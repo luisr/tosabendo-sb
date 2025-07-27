@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Monitor, Laptop, Smartphone } from "lucide-react" // Importado Monitor
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator, // Importado
 } from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
@@ -26,13 +27,26 @@ export function ThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme("light")}>
-          Claro
+          <Sun className="mr-2 h-4 w-4" />
+          <span>Claro (Padrão)</span>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("theme-macos-light")}>
+          <Laptop className="mr-2 h-4 w-4" />
+          <span>macOS (Claro)</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Escuro
+          <Moon className="mr-2 h-4 w-4" />
+          <span>Escuro (Padrão)</span>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("theme-win11-dark")}>
+          <Monitor className="mr-2 h-4 w-4" />
+          <span>Windows 11 (Escuro)</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setTheme("system")}>
-          Sistema
+          <Smartphone className="mr-2 h-4 w-4" />
+          <span>Sistema</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
