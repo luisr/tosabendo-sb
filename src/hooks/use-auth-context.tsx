@@ -14,31 +14,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ user, children }: { user: User | null; children: React.Node }) {
+export function AuthProvider({ user, children }: { user: User | null; children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProjects = async () => {
-    console.log("DEBUG (context): Iniciando busca de projetos no cliente...");
     setLoading(true);
     try {
       const fetchedProjects = await getProjectsAction();
-      console.log(`DEBUG (context): Recebidos ${fetchedProjects.length} projetos da Server Action.`);
-      setProjects(fetchedProjects ?? []); // Garante que nunca seja nulo
+      setProjects(fetchedProjects);
     } catch (error) {
-      console.error("DEBUG (context): Erro ao buscar projetos:", error);
-      setProjects([]); // Fallback para array vazio em caso de erro
+      console.error("Failed to fetch projects in context:", error);
+      setProjects([]); // Em caso de erro, define como vazio
     } finally {
       setLoading(false);
-      console.log("DEBUG (context): Busca de projetos finalizada.");
     }
   };
 
   useEffect(() => {
     if (user) {
       fetchProjects();
-    } else {
-      setLoading(false);
     }
   }, [user]);
 
@@ -48,7 +43,7 @@ export function AuthProvider({ user, children }: { user: User | null; children: 
 
   const value = {
     user,
-    projects: projects ?? [], // Garante que o valor do contexto nunca seja nulo
+    projects,
     loading,
     refreshProjects,
   };
