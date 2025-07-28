@@ -4,14 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { Project, ProjectRole, User } from '@/lib/types'
 
-// Função auxiliar para buscar o perfil do usuário logado
-async function getAuthenticatedUserProfile(supabase: any): Promise<User | null> {
+// Função auxiliar para buscar o perfil completo do usuário autenticado
+async function getUserWithRole(supabase: any): Promise<User | null> {
   const { data: { user: authUser } } = await supabase.auth.getUser();
   if (!authUser) return null;
 
   const { data: userProfile } = await supabase
     .from('users')
-    .select('*')
+    .select('*') // Busca todos os campos, incluindo a 'role'
     .eq('id', authUser.id)
     .single();
   
@@ -19,10 +19,11 @@ async function getAuthenticatedUserProfile(supabase: any): Promise<User | null> 
 }
 
 export async function getProjectsAction(): Promise<Project[]> {
-  const supabase = createClient(); // Cliente que respeita a RLS
-  const user = await getAuthenticatedUserProfile(supabase);
+  const supabase = createClient();
+  const user = await getUserWithRole(supabase);
 
   if (!user) {
+    console.log("DEBUG (actions.ts): Usuário não autenticado. Retornando array vazio.");
     return [];
   }
 
@@ -35,23 +36,22 @@ export async function getProjectsAction(): Promise<Project[]> {
       console.error('Error fetching all project IDs for Super Admin:', error);
       return [];
     }
-    projectIds = data.map(p => p.id);
+    projectIds = (data ?? []).map(p => p.id);
   } else {
-    // Para outros usuários, fazemos uma consulta simples que a RLS pode resolver sem recursão.
+    // Para outros usuários, fazemos uma consulta simples que a RLS pode resolver.
     const { data, error } = await supabase.from('projects').select('id');
     if (error) {
       console.error('Error fetching user project IDs:', error);
       return [];
     }
-    projectIds = data.map(p => p.id);
+    projectIds = (data ?? []).map(p => p.id);
   }
 
   if (projectIds.length === 0) {
     return [];
   }
 
-  // Agora, com os IDs seguros, usamos o cliente admin para buscar todos os dados completos.
-  // Esta consulta ignora a RLS e evita qualquer possibilidade de recursão.
+  // Com os IDs seguros, usamos o cliente admin para buscar todos os dados completos.
   const { data: projects, error } = await supabaseAdmin
     .from('projects')
     .select(`
@@ -68,7 +68,7 @@ export async function getProjectsAction(): Promise<Project[]> {
     return [];
   }
 
-  // Mapeamento robusto com fallbacks.
+  // Mapeamento defensivo.
   return (projects ?? []).map((p: any) => ({
     id: p.id,
     name: p.name ?? 'Projeto sem nome',
