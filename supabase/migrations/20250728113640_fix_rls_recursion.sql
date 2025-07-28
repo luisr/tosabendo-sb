@@ -39,16 +39,13 @@ CREATE POLICY "Usuários podem ver projetos dos quais são membros"
 
 -- Política de SELECT para a tabela 'project_team'
 -- Um usuário pode ver os membros de um projeto se ele mesmo for membro daquele projeto.
+-- CORREÇÃO: Usar a função is_project_member para evitar recursão.
 CREATE POLICY "Membros do projeto podem ver a equipe do projeto"
   ON project_team
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM project_team pt
-      WHERE pt.project_id = project_team.project_id
-      AND pt.user_id = auth.uid()
-    )
+    is_project_member(project_id, auth.uid())
     OR
     EXISTS (
       SELECT 1 FROM users

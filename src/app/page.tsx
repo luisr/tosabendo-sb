@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
-import { createClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'; // Corrigido
 
 const Logo = () => (
     <div className="flex justify-center items-center mb-4 text-primary">
@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
+  const supabase = createSupabaseBrowserClient(); // Corrigido
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,8 +66,6 @@ export default function LoginPage() {
             role: 'Viewer',
             status: 'active',
         };
-
-        console.log("DEBUG: Tentando inserir o seguinte perfil:", JSON.stringify(newProfile, null, 2));
 
         const { error: createProfileError } = await supabase
             .from('users')

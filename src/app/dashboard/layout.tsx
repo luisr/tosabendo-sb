@@ -1,39 +1,61 @@
 // src/app/dashboard/layout.tsx
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { createClient } from '@/lib/supabase/server';
-import type { User } from '@/lib/types';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { User, Project } from '@/lib/types';
 import { redirect } from 'next/navigation';
 import { AuthProvider } from '@/hooks/use-auth-context';
-import { NotificationListener } from '@/components/dashboard/notification-listener';
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+// Lógica de busca de dados movida diretamente para o Server Component.
+// CORRIGIDO: Simplificando a query para evitar recursão e erros de embedding.
+// Agora, consultamos 'projects' diretamente e deixamos o RLS fazer o trabalho de filtragem.
+async function getProjectsForUser(): Promise<Project[]> {
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase
+        .from('projects')
+        .select('*');
+    
+    if (error) {
+        console.error('Erro ao buscar projetos do usuário:', error);
+        return [];
+    }
+    
+    return data as Project[];
+}
 
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) {
-    return redirect('/');
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = createSupabaseServerClient();
+  // CORRIGIDO: Usando getUser() para segurança, em vez de getSession().
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
   }
 
-  const { data: userProfile } = await supabase
+  // A busca pelo perfil do usuário na tabela 'users' é necessária para obter o 'role'.
+  const { data: userProfile, error: profileError } = await supabase
     .from('users')
     .select('*')
-    .eq('id', authUser.id)
+    .eq('id', user.id)
     .single();
-
-  if (!userProfile) {
-    console.error("Layout error: User profile not found for authenticated user.");
-    return redirect('/');
+  
+  if (profileError || !userProfile) {
+    console.error("Erro ao buscar perfil do usuário:", profileError);
+    // Mesmo que o usuário esteja autenticado, se não tiver perfil, não deve prosseguir.
+    redirect('/login');
   }
 
-  const user: User = userProfile;
+  const projects = await getProjectsForUser();
 
   return (
-    // O AuthProvider agora gerencia o carregamento dos projetos no cliente
-    <AuthProvider user={user}>
-      <NotificationListener />
-      <div className="flex min-h-screen bg-background">
-        <DashboardSidebar /> {/* Não precisa mais de props */}
-        <main className="flex-1 flex flex-col">
+    <AuthProvider initialUser={userProfile as User} initialProjects={projects}>
+      <div className="flex min-h-screen">
+        <DashboardSidebar />
+        <main className="flex-1 p-8 bg-muted/40">
           {children}
         </main>
       </div>

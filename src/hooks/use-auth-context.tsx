@@ -1,55 +1,44 @@
 // src/hooks/use-auth-context.tsx
-'use client'
+'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import type { User, Project } from '@/lib/types';
-import { getProjectsAction } from '@/app/actions';
+// Removemos a chamada de actions daqui, pois os dados virão do layout
 
 interface AuthContextType {
   user: User | null;
   projects: Project[];
   loading: boolean;
-  refreshProjects: () => void;
+  refreshProjects: () => void; // A lógica será implementada se necessário
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ user, children }: { user: User | null; children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    try {
-      const fetchedProjects = await getProjectsAction();
-      setProjects(fetchedProjects);
-    } catch (error) {
-      console.error("Failed to fetch projects in context:", error);
-      setProjects([]); // Em caso de erro, define como vazio
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user]);
-
-  const refreshProjects = () => {
-    fetchProjects();
-  };
-
-  const value = {
-    user,
-    projects,
-    loading,
-    refreshProjects,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+interface AuthProviderProps {
+  children: ReactNode;
+  initialUser: User;
+  initialProjects: Project[];
 }
+
+export const AuthProvider = ({ children, initialUser, initialProjects }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [loading, setLoading] = useState(false); // Carregamento inicial já foi feito no servidor
+
+  // Função para re-buscar projetos (pode ser chamada após criar um novo projeto)
+  const refreshProjects = useCallback(async () => {
+    // A lógica para buscar projetos do lado do cliente pode ser adicionada aqui
+    // usando uma nova server action `getProjectsAction` se necessário.
+    // Por enquanto, vamos manter simples.
+    console.log("Atualizando projetos...");
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, projects, loading, refreshProjects }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 export const useAuthContext = () => {
   const context = useContext(AuthContext);

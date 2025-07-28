@@ -1,25 +1,31 @@
-import { type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/middleware' // Corrigido
+// middleware.ts
+import { type NextRequest } from 'next/server';
+import { createSupabaseMiddlewareClient } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
-  const { supabase, response } = createClient(request)
+  // Esta função `createClient` (agora `createSupabaseMiddlewareClient`) lida com a criação de um cliente Supabase
+  // que pode ler e escrever cookies na middleware.
+  const { supabase, response } = createSupabaseMiddlewareClient(request);
 
-  // Refresh session if expired - required for Server Components
-  // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
-  await supabase.auth.getSession()
+  // O Supabase Auth Helpers precisa rodar `getSession` para atualizar
+  // os cookies de autenticação em cada requisição.
+  // Isso garante que a sessão do usuário permaneça válida.
+  await supabase.auth.getSession();
 
-  return response
+  // Retorna a resposta, que pode ter sido modificada com cookies de sessão atualizados.
+  return response;
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * Faz a correspondência de todos os caminhos de requisição, exceto os que começam com:
+     * - _next/static (arquivos estáticos)
+     * - _next/image (arquivos de otimização de imagem)
+     * - favicon.ico (arquivo de favicon)
+     * - api/ (rotas de API, para evitar que a middleware interfira)
+     * Sinta-se à vontade para modificar este padrão para incluir mais caminhos.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/).*)',
   ],
-}
+};

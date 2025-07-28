@@ -1,20 +1,35 @@
 // src/app/dashboard/projects/[id]/page.tsx
-import { notFound } from "next/navigation";
-import { ProjectDashboardClient } from "@/components/dashboard/project-dashboard-client";
 import { getProject } from "@/lib/supabase/service";
-import { Shell } from "@/components/ui/shell";
+import { ProjectDashboardClient } from "@/components/dashboard/project-dashboard-client";
+import { redirect } from 'next/navigation';
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default async function ProjectDashboardPage({ params }: { params: { id: string } }) {
-  
+interface ProjectDashboardPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function ProjectDashboardPage({ params }: ProjectDashboardPageProps) {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return redirect('/login');
+  }
+
   const project = await getProject(params.id);
 
   if (!project) {
-    notFound();
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Projeto não encontrado</h1>
+          <p className="text-muted-foreground">O projeto que você está procurando não existe ou você não tem permissão para vê-lo.</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <Shell>
-      <ProjectDashboardClient initialProject={project} />
-    </Shell>
-  );
+  return <ProjectDashboardClient project={project} />;
 }

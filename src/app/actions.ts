@@ -1,88 +1,115 @@
-'use server'
+// src/app/actions.ts
+'use server';
 
-import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
-import type { Project, ProjectRole, User } from '@/lib/types'
+import { revalidatePath } from 'next/cache';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { User, Project } from '@/lib/types';
+import { userSchema } from '@/lib/validation';
 
-// Função auxiliar para buscar o perfil completo do usuário autenticado
-async function getUserWithRole(supabase: any): Promise<User | null> {
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) return null;
+// ===== Ações de Usuário =====
 
-  const { data: userProfile } = await supabase
-    .from('users')
-    .select('*') // Busca todos os campos, incluindo a 'role'
-    .eq('id', authUser.id)
-    .single();
+export async function updateUserAction(userId: string, formData: FormData) {
+  const supabase = createSupabaseServerClient();
   
-  return userProfile as User;
+  const values = {
+    name: formData.get('name') as string,
+    email: formData.get('email') as string,
+    phone: formData.get('phone') as string,
+    role: formData.get('role') as string,
+  };
+
+  const validatedFields = userSchema.safeParse(values);
+
+  if (!validatedFields.success) {
+    return { error: 'Campos inválidos.' };
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update(validatedFields.data)
+    .eq('id', userId);
+  
+  if (error) {
+    return { error: 'Erro ao atualizar o usuário.' };
+  }
+
+  revalidatePath('/dashboard/admin/users'); // Atualiza o cache da página de usuários
+  return { success: 'Usuário atualizado com sucesso!' };
 }
 
-export async function getProjectsAction(): Promise<Project[]> {
-  const supabase = createClient();
-  const user = await getUserWithRole(supabase);
+export async function createUserAction(formData: FormData) {
+    const supabase = createSupabaseServerClient();
+
+    const values = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        role: formData.get('role') as string,
+    };
+    
+    const validatedFields = userSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return { error: 'Campos inválidos.' };
+    }
+
+    // Nota: A criação de usuário no Supabase Auth não está aqui.
+    // Esta ação assume que o usuário já existe na autenticação
+    // e estamos apenas criando o perfil dele na tabela 'users'.
+    const { error } = await supabase.from('users').insert(validatedFields.data);
+
+    if (error) {
+        if (error.code === '23505') return { error: 'Já existe um usuário com este email.' };
+        return { error: 'Erro ao criar o usuário.' };
+    }
+
+    revalidatePath('/dashboard/admin/users');
+    return { success: 'Usuário criado com sucesso!' };
+}
+
+
+// ===== Ações de Projeto =====
+
+export async function createProjectAction(formData: FormData) {
+    const supabase = createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { error: 'Usuário não autenticado.' };
+    }
+
+    const { error } = await supabase.from('projects').insert({
+        name: formData.get('name'),
+        description: formData.get('description'),
+        manager_id: user.id, // O criador é o gerente
+        // outros campos...
+    });
+
+    if (error) {
+        return { error: 'Erro ao criar o projeto.' };
+    }
+
+    revalidatePath('/dashboard'); // Atualiza a lista de projetos na sidebar
+    return { success: 'Projeto criado com sucesso!' };
+}
+
+export async function getProjectsAction(): Promise<{ data?: Project[]; error?: string }> {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    console.log("DEBUG (actions.ts): Usuário não autenticado. Retornando array vazio.");
-    return [];
+    return { error: 'Usuário não autenticado.' };
   }
 
-  let projectIds: string[];
-
-  // Se o usuário for Super Admin, ele tem acesso a todos os projetos.
-  if (user.role === 'Super Admin') {
-    const { data, error } = await supabaseAdmin.from('projects').select('id');
-    if (error) {
-      console.error('Error fetching all project IDs for Super Admin:', error);
-      return [];
-    }
-    projectIds = (data ?? []).map(p => p.id);
-  } else {
-    // Para outros usuários, fazemos uma consulta simples que a RLS pode resolver.
-    const { data, error } = await supabase.from('projects').select('id');
-    if (error) {
-      console.error('Error fetching user project IDs:', error);
-      return [];
-    }
-    projectIds = (data ?? []).map(p => p.id);
-  }
-
-  if (projectIds.length === 0) {
-    return [];
-  }
-
-  // Com os IDs seguros, usamos o cliente admin para buscar todos os dados completos.
-  const { data: projects, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from('projects')
-    .select(`
-      id, name, description, planned_start_date, planned_end_date,
-      actual_start_date, actual_end_date, planned_budget, actual_cost,
-      kpis, configuration,
-      manager:users!projects_manager_id_fkey(*),
-      team:project_team(role, user:users(*))
-    `)
-    .in('id', projectIds);
+    .select('*')
+    .eq('manager_id', user.id); // Filtra projetos pelo manager_id
 
   if (error) {
-    console.error('Error fetching full projects data with admin client:', error);
-    return [];
+    console.error("Error fetching projects:", error);
+    return { error: 'Erro ao buscar projetos.' };
   }
 
-  // Mapeamento defensivo.
-  return (projects ?? []).map((p: any) => ({
-    id: p.id,
-    name: p.name ?? 'Projeto sem nome',
-    description: p.description ?? '',
-    manager: p.manager ?? null,
-    plannedStartDate: p.planned_start_date,
-    plannedEndDate: p.planned_end_date,
-    actualStartDate: p.actual_start_date,
-    actualEndDate: p.actual_end_date,
-    plannedBudget: p.planned_budget ?? 0,
-    actualCost: p.actual_cost ?? 0,
-    team: (p.team ?? []).map((tm: any) => ({ user: tm.user, role: tm.role as ProjectRole })).filter(tm => tm.user),
-    tasks: [],
-    kpis: p.kpis ?? {},
-    configuration: p.configuration ?? {},
-  }));
-}
+  return { data: data as Project[] };
+} 

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
 import { format } from 'date-fns';
-import { getProjectsAction } from '@/app/actions'; // Corrigido
+import { getProjectsAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PRIORITY_CLASSES } from '@/lib/constants';
@@ -33,7 +33,19 @@ export default function AllTasksPage() {
     async function fetchAllTasks() {
       setLoading(true);
       try {
-        const projects = await getProjectsAction(); // Corrigido
+        const result = await getProjectsAction(); 
+        if (result.error) {
+          toast({
+            title: "Erro ao carregar projetos",
+            description: result.error,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        
+        const projects = result.data || []; // Ensure projects is an array
+
         const aggregatedTasks: AggregatedTask[] = projects.flatMap(project =>
           (project.tasks ?? []).map(task => ({
             ...task,
