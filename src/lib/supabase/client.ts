@@ -1,9 +1,9 @@
 // src/lib/supabase/client.ts
-import { createBrowserClient } from '@supabase/ssr';
+'use client'
+import { createBrowserClient } from '@supabase/ssr'
 
-export function createSupabaseBrowserClient() {
-  return createBrowserClient(
+export const createSupabaseBrowserClient = () => // Renomeado
+  createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+  )

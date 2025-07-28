@@ -1,82 +1,83 @@
 // src/lib/supabase/service.ts
-import { createSupabaseServerClient } from "./server";
-import { z } from "zod";
-import { userSchema } from "@/lib/validation";
+import { supabase } from './config';
+import type { Project, User, Task, ChangeLog } from '@/lib/types';
 
-// Exemplo de função para buscar um projeto específico com suas tarefas
-export async function getProject(projectId: string) {
-  const supabase = createSupabaseServerClient();
+// ===== Funções de Usuários =====
+export async function getAllUsers(): Promise<User[]> {
+  const { data, error } = await supabase.from('users').select('*');
+  if (error) { throw error; }
+  return data ?? [];
+}
 
-  console.log(`INFO: Tentando buscar projeto com ID: ${projectId}`);
+export async function updateUser(userId: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
+    const { error } = await supabase.from('users').update(userData).eq('id', userId);
+    if (error) { throw error; }
+}
 
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*, tasks!fk_tasks_project(*)') // Specify the foreign key using fk_tasks_project
-    .eq('id', projectId)
-    .single();
+export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
+    const { data, error } = await supabase.from('users').insert(userData).select('id').single();
+    if (error) { throw error; }
+    return data.id;
+}
 
-  if (error) {
-    console.error("Erro ao buscar projeto:", error);
-    // More detailed logging for specific error types
-    if (error.code === 'PGRST116') { // PGRST116 is the code for "no rows found"
-      console.log(`INFO: Projeto com ID ${projectId} não encontrado no banco de dados.`);
-    } else if (error.code === 'PGRST201') { // PGRST201 for multiple relationships
-        console.error(`ERROR: Multiplas relações encontradas para 'projects' e 'tasks' ao buscar projeto ${projectId}. Detalhes:`, JSON.stringify(error.details, null, 2));
-    } else {
-      console.error(`ERROR: Erro inesperado ao buscar projeto ${projectId}:`, error.message);
+
+// ===== Funções de Projetos =====
+
+export async function getProject(id: string): Promise<Project | undefined> {
+    const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select(`*, manager:users(*), team:project_team(role, user:users(*))`)
+        .eq('id', id)
+        .single();
+
+    if (projectError) { throw projectError; }
+    if (!projectData) return undefined;
+    
+    const tasks = await getTasks(id);
+
+    return { ...projectData, tasks } as Project;
+}
+
+// ===== Funções de Tarefas =====
+
+export async function getTasks(projectId: string): Promise<Task[]> {
+    const { data, error } = await supabase.from('tasks').select('*, assignee:users(*)').eq('project_id', projectId);
+    if (error) { throw error; }
+    return data as Task[] ?? [];
+}
+
+export async function createTask(taskData: Omit<Task, 'id' | 'subTasks' | 'changeHistory'>): Promise<string> {
+  const { dependencies, assignee, ...restTaskData } = taskData;
+  const { data, error } = await supabase.from('tasks').insert({ ...restTaskData, assignee_id: assignee?.id }).select('id').single();
+  if (error) { throw error; }
+  
+  const newTaskId = data.id;
+  if (dependencies && dependencies.length > 0) {
+    const dependencyInserts = dependencies.map(depId => ({ task_id: newTaskId, depends_on_task_id: depId }));
+    const { error: depError } = await supabase.from('task_dependencies').insert(dependencyInserts);
+    if (depError) { throw depError; }
+  }
+  return newTaskId;
+}
+
+export async function updateTask(taskId: string, taskData: Partial<Omit<Task, 'id' | 'subTasks'>>) {
+  const { dependencies, assignee, changeHistory, ...restTaskData } = taskData;
+  const taskToUpdate: { [key: string]: any } = { ...restTaskData, assignee_id: assignee?.id, change_history: changeHistory };
+  Object.keys(taskToUpdate).forEach(key => taskToUpdate[key] === undefined && delete taskToUpdate[key]);
+
+  const { error } = await supabase.from('tasks').update(taskToUpdate).eq('id', taskId);
+  if (error) { throw error; }
+
+  if (dependencies) {
+    await supabase.from('task_dependencies').delete().eq('task_id', taskId);
+    if (dependencies.length > 0) {
+      const dependencyInserts = dependencies.map(depId => ({ task_id: taskId, depends_on_task_id: depId }));
+      await supabase.from('task_dependencies').insert(dependencyInserts);
     }
-    return null;
   }
-
-  console.log(`DEBUG: Dados completos recebidos para o projeto ${projectId}:`, data);
-  console.log(`DEBUG: Tasks recebidas para o projeto ${projectId}:`, data?.tasks);
-
-  return data; // Retorna o objeto do projeto com as tarefas ou null se não encontrado ou erro
 }
 
-export async function getAllUsers() {
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from('users')
-    .select('*');
-
-  if (error) {
-    console.error("Error fetching users:", error.message);
-    return [];
-  }
-
-  return data;
-}
-
-export async function createUser(userData: z.infer<typeof userSchema>) {
-  const supabase = createSupabaseServerClient();
-  // In a real application, you would likely handle user creation securely,
-  // possibly involving inviting users or setting temporary passwords via backend.
-  // This is a simplified example.
-  const { data, error } = await supabase.auth.admin.createUser({
-    email: userData.email,
-    password: 'temporary_password', // Consider a more secure approach
-    email_confirm: true,
-    // user_metadata: { name: userData.name, role: userData.role }, // Example metadata
-  });
-
-  if (error) {
-    console.error("Error creating user:", error.message);
-    throw new Error(error.message);
-  }
-
-  // Optionally, add user to your 'users' table with role and name
-  const { error: insertError } = await supabase
-    .from('users')
-    .insert([
-      { id: data.user?.id, name: userData.name, role: userData.role }
-    ]);
-
-  if (insertError) {
-    console.error("Error inserting user into profile table:", insertError.message);
-    // Depending on your error handling, you might want to rollback the auth.admin.createUser
-    throw new Error(insertError.message);
-  }
-
-  return data.user;
+export async function deleteTask(taskId: string): Promise<void> {
+  const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+  if (error) { throw error; }
 }
