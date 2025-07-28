@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'; // Corrected import
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User as AppUser } from '@/lib/types';
 
@@ -14,7 +14,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const supabase = createClient();
+  const supabase = createSupabaseBrowserClient(); // Corrected function call
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
-        .maybeSingle(); 
-      
+        .maybeSingle();
+
       if (error) {
-        console.error("Error fetching user profile:", error.message); 
+        console.error("Error fetching user profile:", error.message);
         return null;
       }
       return userProfile as AppUser;

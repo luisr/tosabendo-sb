@@ -7,19 +7,20 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { userSchema } from '@/lib/validation';
-import { createUser } from '@/lib/supabase/service';
+// Removed direct import of createUser service
 import { UserForm } from '@/components/dashboard/user-form';
 import { Shell } from '@/components/ui/shell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { createUser } from './actions'; // Import the server action
 
 type UserFormValues = z.infer<typeof userSchema>;
 
 export default function NewUserPage() {
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -31,13 +32,22 @@ export default function NewUserPage() {
 
   const onSubmit = async (data: UserFormValues) => {
     try {
-      // A lógica de senha e mustChangePassword será tratada pelo serviço/backend
-      await createUser(data);
-      toast({
-        title: 'Usuário Criado com Sucesso',
-        description: `Um convite ou senha temporária foi enviada para ${data.email}.`,
-      });
-      router.push('/dashboard/admin/settings'); // Redireciona de volta para a lista
+      // Call the server action instead of the service directly
+      const result = await createUser(data);
+
+      if (result.success) {
+        toast({
+          title: 'Usuário Criado com Sucesso',
+          description: `Um convite ou senha temporária foi enviada para ${data.email}.`,
+        });
+        router.push('/dashboard/admin/settings'); // Redireciona de volta para a lista
+      } else {
+        toast({
+          title: 'Erro ao Criar Usuário',
+          description: result.error || 'Não foi possível criar o novo usuário.',
+          variant: 'destructive',
+        });
+      }
     } catch (error: any) {
       toast({
         title: 'Erro ao Criar Usuário',

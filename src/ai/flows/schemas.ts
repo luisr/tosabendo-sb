@@ -30,3 +30,24 @@ export const projectPlanSchema = z.object({
   introduction: z.string().describe("Uma breve introdução ao plano de projeto."),
   tasks: z.array(projectTaskSchema).describe("A lista detalhada de tarefas do projeto."),
 });
+
+// Define a estrutura da saída para previsão de riscos
+export const predictProjectRisksOutputSchema = z.object({
+  risks: z.array(z.object({
+    description: z.string().describe("Descrição do risco identificado."),
+    likelihood: z.enum(['Low', 'Medium', 'High']).describe("Probabilidade do risco ocorrer."),
+    impact: z.enum(['Low', 'Medium', 'High']).describe("Impacto do risco no projeto."),
+    mitigation: z.string().optional().describe("Sugestões para mitigar o risco."),
+  })).describe("Lista de riscos previstos para o projeto."),
+});
+
+// Define a estrutura da saída para sumarização de todos os projetos
+export const summarizeAllProjectsOutputSchema = z.object({
+  summary: z.string().describe("Um resumo geral do status de todos os projetos."),
+  projectSummaries: z.array(z.object({
+    projectId: z.string().describe("O ID do projeto."),
+    projectName: z.string().describe("O nome do projeto."),
+    status: z.string().describe("O status atual do projeto (ex: 'On Track', 'At Risk', 'Delayed')."),
+    keyHighlights: z.array(z.string()).describe("Pontos chave ou atualizações recentes do projeto."),
+  })).describe("Resumos individuais para cada projeto."),
+});

@@ -1,133 +1,97 @@
-// src/components/dashboard/gantt-chart.tsx
-"use client"
-
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import type { Project, Task } from '@/lib/types';
-// ... (outros imports mantidos) ...
-import { Target, Diamond } from 'lucide-react'; // Importado Diamond
-import { useMobile } from '@/hooks/use-mobile'; // Importado
+import React, { useState, useEffect } from 'react';
+import { ViewMode, Gantt } from 'gantt-task-react';
+import "gantt-task-react/dist/index.css";
+import { Task } from "@/lib/types";
+import { formatTimeToViewMode } from "@/lib/utils/date";
+import { Target, Diamond } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ... (tipos e funções auxiliares mantidas) ...
 
-export function GanttChart({ project, onSaveBaseline, onDeleteBaseline }: GanttChartProps) {
-  const printableRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState<ZoomLevel>('day');
-  const isMobile = useMobile();
+export function GanttChart({ tasks }: { tasks: Task[] }) {
+  const [view, setView] = useState<ViewMode>(ViewMode.Day);
+  const isMobile = useIsMobile();
 
-  // ... (useMemo para tasks, taskMap, etc., mantido) ...
-
-  // Ajusta o zoom padrão para mobile
   useEffect(() => {
     if (isMobile) {
-        setZoom('month');
+      setView(ViewMode.Week);
+    } else {
+      setView(ViewMode.Month);
     }
   }, [isMobile]);
 
-  // ... (useMemo para timeHeader, todayIndex, etc., mantido) ...
+  const ganttTasks = tasks
+    .filter(task => {
+      console.log("GanttChart: Filtering task:", task);
+      return task.startDate && task.endDate;
+    })
+    .map(task => {
+      console.log("GanttChart: Mapping task:", task);
+      const startDate = new Date(task.startDate);
+      const endDate = new Date(task.endDate);
+      console.log("GanttChart: Created dates: ", { startDate, endDate });
 
-  // Se for mobile, renderiza uma versão simplificada
-  if (isMobile) {
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.error(`GanttChart: Task with ID ${task.id} has invalid date values: startDate=${task.startDate}, endDate=${task.endDate}`);
+        return null; 
+      }
+
+      const ganttTask = {
+        id: task.id,
+        name: task.name,
+        start: startDate, 
+        end: endDate,     
+        progress: task.progress,
+        type: task.type,
+        ...(task.dependencies && {
+          dependencies: Array.isArray(task.dependencies)
+            ? task.dependencies 
+            : typeof task.dependencies === 'string'
+              ? task.dependencies.split(',').map(dep => dep.trim())
+              : undefined 
+        }),
+      };
+      console.log("GanttChart: Created ganttTask:", ganttTask);
+      return ganttTask;
+    })
+    .filter(task => {
+      console.log("GanttChart: Filtering out task:", task);
+      return task != null;
+    }) as any; 
+
+  console.log("GanttChart: Final ganttTasks array BEFORE passing to Gantt component:", ganttTasks);
+  ganttTasks.forEach((task, index) => {
+      console.log(`GanttChart: Task ${index} - start property:`, task ? task.start : 'Task is null or undefined');
+  });
+
+  // Check if ganttTasks is empty before rendering Gantt
+  if (ganttTasks.length === 0) {
+    console.log("GanttChart: ganttTasks array is empty. Not rendering Gantt.");
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Cronograma do Projeto</CardTitle>
-                <CardDescription>Lista de tarefas e seus prazos.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    {tasks.map(task => (
-                        <div key={task.id} className="p-3 border rounded-lg" style={{ marginLeft: `${task.level * 1.5}rem`}}>
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold">{task.name}</span>
-                                {task.isMilestone && <Target className="h-4 w-4 text-primary" />}
-                            </div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                                <span>{format(new Date(task.plannedStartDate), 'dd/MM/yy')}</span>
-                                <span> → </span>
-                                <span>{format(new Date(task.plannedEndDate), 'dd/MM/yy')}</span>
-                            </div>
-                            <div className="w-full bg-muted rounded-full h-2.5 mt-2">
-                                <div className="bg-primary h-2.5 rounded-full" style={{ width: `${task.progress || 0}%` }}></div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+      <div className="overflow-auto">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Nenhuma tarefa com datas válidas para exibir no gráfico de Gantt.</p>
+        </div>
+      </div>
     );
   }
 
-  // Renderização completa para Desktop
   return (
-    <Card>
-      {/* ... (CardHeader com ações mantido) ... */}
-      <CardContent className="overflow-x-auto printable" ref={printableRef}>
-        <div className="relative inline-block min-w-full text-sm printable-content">
-            {/* ... (grid e headers da timeline mantidos) ... */}
-
-            {/* Lista de Tarefas e Barras */}
-            {tasks.map((task, rowIndex) => {
-              // ... (cálculos de coordenadas mantidos) ...
-
-              // Lógica para renderizar a barra da tarefa OU um marco
-              const TaskBarOrMilestone = () => {
-                if (task.isMilestone) {
-                    return (
-                         <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className="absolute top-1/2 -translate-y-1/2 z-20" style={{ left: `${barStart * cellWidth + (cellWidth / 2) - 10}px` }}>
-                                        <Diamond className="h-5 w-5 text-primary" fill="currentColor" />
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="font-bold">{task.name} (Marco)</p>
-                                    <p>Data: {format(new Date(task.plannedEndDate), 'dd/MM/yyyy')}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                         </TooltipProvider>
-                    );
-                }
-                
-                return (
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div
-                                    className={cn( "absolute h-6 rounded-md flex items-center justify-center text-white text-xs overflow-hidden z-10 self-center top-1/2 -translate-y-1/2", /* ... */)}
-                                    style={{ /* ... */ }}
-                                >
-                                    {/* Barra de progresso interna */}
-                                    <div className="absolute left-0 top-0 h-full bg-black/20" style={{ width: `${task.progress || 0}%`}}></div>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {/* ... (conteúdo do tooltip mantido) ... */}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                );
-              };
-
-              return (
-                <React.Fragment key={task.id}>
-                    {/* Task Name */}
-                    <div className="sticky left-0 z-20 flex items-center p-2 ..." style={{ /* ... */ }}>
-                      {task.name}
-                    </div>
-                    
-                    <div className='relative h-full' style={{ /* ... */ }}>
-                      {/* ... (Baseline Bar mantida) ... */}
-                      <TaskBarOrMilestone />
-                    </div>
-                </React.Fragment>
-              );
-            })}
-
-            {/* Dependency Lines Overlay */}
-            {/* ... (lógica de linhas de dependência mantida) ... */}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="overflow-auto">
+      <Gantt
+        tasks={ganttTasks}
+        viewMode={view}
+        onDateChange={(task, children) => { /* Handle date change */ }}
+        onProgressChange={(task, children) => { /* Handle progress change */ }}
+        onDoubleClick={(task) => { /* Handle double click */ }}
+        onClick={(task) => { /* Handle click */ }}
+        onDelete={(task) => { /* Handle delete */ }}
+        listCellWidth={isMobile ? "155px" : "250px"}
+        columnWidth={isMobile ? 30 : undefined}
+        rowHeight={isMobile ? 40 : undefined}
+        headerHeight={isMobile ? 50 : undefined}
+        ganttHeight={isMobile ? 200 : undefined}
+      />
+    </div>
   );
 }
