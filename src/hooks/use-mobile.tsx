@@ -1,19 +1,28 @@
-import * as React from "react"
+// src/hooks/use-mobile.tsx
+'use client';
 
-const MOBILE_BREAKPOINT = 768
+import { useState, useEffect } from 'react';
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+// Um hook simples para detectar se a tela está em um tamanho "mobile" (abaixo de 768px por padrão)
+export function useMobile(query: string = '(max-width: 768px)') {
+  const [isMobile, setIsMobile] = useState(false);
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(query);
+    
+    // Define o estado inicial
+    setIsMobile(mediaQuery.matches);
 
-  return !!isMobile
+    // Ouve as mudanças
+    const handler = (event: MediaQueryListEvent) => {
+      setIsMobile(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handler);
+
+    // Limpa o ouvinte quando o componente é desmontado
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, [query]);
+
+  return isMobile;
 }

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'; // Corrected import
+import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User as AppUser } from '@/lib/types';
 
@@ -14,44 +14,46 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const supabase = createSupabaseBrowserClient(); // Corrected function call
+  const supabase = createClient();
   const [user, setUser] = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Começa como true por padrão
 
   useEffect(() => {
-    const getActiveUserProfile = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
-      if (!supabaseUser) {
-        return null;
-      }
-
-      // Corrigido: Usar .maybeSingle() para evitar erros quando o perfil ainda não existe.
-      // Ele retorna null em vez de lançar um erro, tornando o código mais resiliente.
+    // Função para buscar o perfil do usuário de forma segura
+    const getActiveUserProfile = async (supabaseUser: SupabaseUser): Promise<AppUser | null> => {
       const { data: userProfile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
-        .maybeSingle();
-
+        .single(); // .single() é mais seguro aqui
+      
       if (error) {
-        console.error("Error fetching user profile:", error.message);
+        console.error("Error fetching user profile:", error.message); 
         return null;
       }
       return userProfile as AppUser;
     };
 
+    // Ouve as mudanças no estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setLoading(true);
-        const appUser = await getActiveUserProfile(session?.user ?? null);
-        setUser(appUser);
+        if (session?.user) {
+          // Se houver uma sessão, busca o perfil
+          const appUser = await getActiveUserProfile(session.user);
+          setUser(appUser);
+        } else {
+          // Se não houver sessão (logout), limpa o usuário
+          setUser(null);
+        }
         setLoading(false);
       }
     );
 
+    // Limpa a inscrição quando o componente é desmontado
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, []); // A dependência vazia garante que isso só rode uma vez
 
   const value = {
     user,
