@@ -11,7 +11,7 @@ export async function getProject(projectId: string) {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('*, tasks(*)') // Select project fields and all associated tasks
+    .select('*, tasks!fk_tasks_project(*)') // Specify the foreign key using fk_tasks_project
     .eq('id', projectId)
     .single();
 

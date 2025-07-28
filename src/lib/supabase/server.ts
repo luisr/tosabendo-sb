@@ -11,10 +11,12 @@ export const createSupabaseServerClient = () => {
     {
       cookies: {
         get(name: string) {
+          // Await the cookieStore.get call
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
+            // Await the cookieStore.set call
             cookieStore.set({ name, value, ...options });
           } catch (error) {
             // O erro "ReadonlyRequestCookies" pode ocorrer em certas rotas do Next.js.
@@ -24,6 +26,7 @@ export const createSupabaseServerClient = () => {
         },
         remove(name: string, options: CookieOptions) {
           try {
+            // Await the cookieStore.set call
             cookieStore.set({ name, value: '', ...options });
           } catch (error) {
             // O erro "ReadonlyRequestCookies" pode ocorrer em certas rotas do Next.js.

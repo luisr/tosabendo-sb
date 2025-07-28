@@ -12,7 +12,10 @@ interface ProjectDashboardPageProps {
 }
 
 export default async function ProjectDashboardPage({ params }: ProjectDashboardPageProps) {
-  console.log(`INFO: Buscando projeto com ID da URL: ${params.id}`);
+  // Awaiting params is not strictly necessary here as per Next.js docs for route params,
+  // but adding await to be explicit based on the warning.
+  const projectId = await params.id;
+  console.log(`INFO: Buscando projeto com ID da URL: ${projectId}`);
 
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,12 +25,13 @@ export default async function ProjectDashboardPage({ params }: ProjectDashboardP
     return redirect('/login');
   }
 
-  const project = await getProject(params.id);
+  // Pass the awaited projectId to getProject
+  const project = await getProject(projectId);
 
-  console.log(`DEBUG: Resultado da busca por projeto (${params.id}):`, project ? 'Projeto encontrado' : 'Projeto NÃO encontrado');
+  console.log(`DEBUG: Resultado da busca por projeto (${projectId}):`, project ? 'Projeto encontrado' : 'Projeto NÃO encontrado');
 
   if (!project) {
-    console.log(`INFO: Projeto com ID ${params.id} não encontrado.`);
+    console.log(`INFO: Projeto com ID ${projectId} não encontrado.`);
     return redirect('/dashboard');
   }
 

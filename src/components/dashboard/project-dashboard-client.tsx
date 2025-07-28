@@ -24,6 +24,9 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: str
         const parsedProject: Project = JSON.parse(initialProject);
         setProject(parsedProject); // Set project state after parsing
         console.log("CLIENT: Parsed project on mount:", parsedProject);
+        console.log("CLIENT: Parsed project tasks:", parsedProject?.tasks);
+        console.log("CLIENT: Parsed project tasks length:", parsedProject?.tasks?.length);
+
       } catch (error) {
         console.error("CLIENT: Error parsing initialProject:", error);
         // Handle parsing error, maybe set project to null or show an error message
@@ -34,6 +37,8 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: str
 
   useEffect(() => {
     console.log("CLIENT: project state changed:", project);
+    console.log("CLIENT: project state tasks:", project?.tasks);
+    console.log("CLIENT: project state tasks length:", project?.tasks?.length);
   }, [project]);
 
   const allKpis = useMemo(() => {
@@ -152,6 +157,20 @@ export function ProjectDashboardClient({ initialProject }: { initialProject: str
           )}
         </div>
       </section>
+
+      {/* Add sections for other views here */}
+      {/* Example: */}
+      {/* <section>
+        <h2 className="text-2xl font-bold mb-4">Tasks Table</h2>
+        {project.tasks && project.tasks.length > 0 ? (
+          <TasksTable tasks={project.tasks} /> // Assuming you have a TasksTable component
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No tasks found for this project.</p>
+          </div>
+        )}
+      </section> */}
+
     </div>
   );
 }
